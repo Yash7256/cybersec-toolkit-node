@@ -189,7 +189,7 @@ server/
 
 ### Block E — Wire-up & cleanup
 
-- [ ] **T1.12 package.json scripts and removal of the old demo**
+- [x] **T1.12 package.json scripts and removal of the old demo**
   - `server/package.json`: `"type":"module"`, scripts `"dev":"node --watch src/server.js"`, `"start":"node src/server.js"`, `"test":"vitest run"`, `"test:watch":"vitest"`.
   - Delete `server/src/index.js` (the old `/api/hello` demo). Check `client/` for any call to `/api/hello` using `grep -rn "api/hello" client/src | head` — if found, report it, do NOT edit client.
   - Root `package.json` scripts `dev`, `dev:server`, `dev:client` must still work (don't change client scripts).
