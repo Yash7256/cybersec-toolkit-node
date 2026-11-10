@@ -163,7 +163,7 @@ server/
   - `routes/index.js` exports a Router mounting `health` at `/`.
   - Commit: `feat(server): health and readiness routes`
 
-- [ ] **T1.10 `src/app.js` — `createApp({ env, logger })`**
+- [x] **T1.10 `src/app.js` — `createApp({ env, logger })`**
   - **Read first:** EXPRESS-SECURITY, HELMET, RATE-LIMIT (README "Usage" + "Configuration"), PINO-HTTP README.
   - Must NOT call `listen`. Defaults: `env` from config, `logger` from `createLogger`.
   - `app.disable('x-powered-by')`; `app.set('trust proxy', env.TRUST_PROXY)`.
