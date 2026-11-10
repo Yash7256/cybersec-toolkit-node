@@ -132,7 +132,7 @@ server/
   - **Read first:** `/tmp/skills-mcollina/skills/node/rules/error-handling.md` (operational vs programmer errors).
   - Commit: `feat(server): AppError`
 
-- [ ] **T1.6 `src/utils/logger.js`**
+- [x] **T1.6 `src/utils/logger.js`**
   - **Read first:** `/tmp/skills-mcollina/skills/node/rules/logging.md` + PINO docs "redaction".
   - Export `createLogger(env)`: pino with `level: env.LOG_LEVEL`; in development only use the `pino-pretty` transport; in production plain JSON.
   - **Redact** (censor `[redacted]`): `req.headers.authorization`, `req.headers.cookie`, `res.headers["set-cookie"]`, `*.password`, `*.token`, `*.secret`.
