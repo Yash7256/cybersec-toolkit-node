@@ -157,7 +157,7 @@ server/
     - If `res.headersSent` → delegate with `next(err)`.
   - Commit: `feat(server): not-found and central error handler`
 
-- [ ] **T1.9 `routes/health.js` and `routes/index.js`**
+- [x] **T1.9 `routes/health.js` and `routes/index.js`**
   - `GET /api/health` → `200 { status:"ok", uptime: process.uptime(), timestamp: new Date().toISOString() }` (liveness: no dependencies checked).
   - `GET /api/ready` → `200 { status:"ready", checks:{} }` — a stub; Phase 2 will add the DB check here. Keep a `checks` registry array so Phase 2 only pushes one function.
   - `routes/index.js` exports a Router mounting `health` at `/`.
