@@ -126,7 +126,7 @@ server/
 
 ### Block C — Utilities
 
-- [ ] **T1.5 `src/utils/AppError.js`**
+- [x] **T1.5 `src/utils/AppError.js`**
   - `class AppError extends Error` with `(statusCode, code, message, details?)`; set `this.name='AppError'`, `this.isOperational = true`; `Error.captureStackTrace`.
   - Static helpers: `AppError.badRequest(msg, details)`, `.unauthorized()`, `.forbidden()`, `.notFound()`, `.tooMany()`, each with a stable machine `code` (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `RATE_LIMITED`).
   - **Read first:** `/tmp/skills-mcollina/skills/node/rules/error-handling.md` (operational vs programmer errors).
