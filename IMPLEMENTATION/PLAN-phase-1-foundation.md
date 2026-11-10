@@ -117,7 +117,7 @@ server/
   - Verify: `node -e "import('./server/src/config/env.js').then(m=>console.log(m.env))"` prints the object. Then run with `PORT=abc` → prints a readable error and exits 1.
   - Commit: `feat(server): validated env config`
 
-- [ ] **T1.4 `.env.example` and `.gitignore`**
+- [x] **T1.4 `.env.example` and `.gitignore`**
   - Create `server/.env.example` listing EVERY var from T1.3 with a one-line `#` comment each.
   - Create `server/.env` as a copy (user's local file).
   - Ensure repo-root `.gitignore` contains `.env`, `.env.*`, `!.env.example`, `node_modules`, `coverage`, `dist`.
