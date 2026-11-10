@@ -98,7 +98,7 @@ server/
 
 ### Block B — Config
 
-- [ ] **T1.3 `src/config/env.js`**
+- [x] **T1.3 `src/config/env.js`**
   - **Fetch & read:** `/tmp/skills-mcollina/skills/node/rules/environment.md` and the ZOD docs "Basic usage / coerce / transform".
   - Export `parseEnv(raw = process.env)` — **pure function**, returns a frozen object, throws `Error` with a readable multi-line message on invalid input. It must NOT call `process.exit`.
   - Schema (zod):
