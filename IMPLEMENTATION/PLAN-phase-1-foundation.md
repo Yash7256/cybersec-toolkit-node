@@ -144,7 +144,7 @@ server/
   - requestId: reuse inbound `x-request-id` only if it matches `/^[A-Za-z0-9._-]{8,64}$/`, else `crypto.randomUUID()`. Set `req.id` and response header `x-request-id`.
   - Commit: `feat(server): request id middleware`
 
-- [ ] **T1.8 `middleware/notFound.js` and `middleware/errorHandler.js`**
+- [x] **T1.8 `middleware/notFound.js` and `middleware/errorHandler.js`**
   - **Read first:** EXPRESS-ERRORS page.
   - notFound → `next(AppError.notFound('Route not found'))`.
   - errorHandler (4-arg signature):
