@@ -203,7 +203,7 @@ server/
   - `server/vitest.config.js`: `environment:'node'`, `include:['tests/**/*.test.js']`, set `NODE_ENV=test` and `LOG_LEVEL=silent` via `test.env`.
   - Commit: `test(server): vitest config`
 
-- [ ] **T1.14 Write the 4 test files** (use `supertest` against `createApp()`; never call `listen`)
+- [x] **T1.14 Write the 4 test files** (use `supertest` against `createApp()`; never call `listen`)
   - `tests/env.test.js` — defaults applied; `PORT=abc` throws; `CORS_ORIGINS="a, ,b"` → trimmed array; invalid URL in CORS rejected; result is frozen.
   - `tests/health.test.js` — `/api/health` 200 + shape; `/api/ready` 200; `x-powered-by` header absent; `x-request-id` present and reused when valid inbound, replaced when invalid.
   - `tests/errors.test.js` — unknown route → 404 `{error:{code:'NOT_FOUND',...}}`; malformed JSON → 400 `INVALID_JSON`; body over limit → 413; a route that throws → 500 with no stack in the body when `NODE_ENV=production`.
@@ -213,7 +213,7 @@ server/
 
 ### Block G — Final verification
 
-- [ ] **T1.15 End-to-end checks**
+- [x] **T1.15 End-to-end checks**
   - `npm run dev` from repo root → client on 5173 and server on 3001 both start.
   - `curl -s localhost:3001/api/health`, `curl -si localhost:3001/nope | head -n 12`, `curl -si -H 'Origin: http://evil.test' localhost:3001/api/health | grep -i access-control || echo "no CORS header (good)"`.
   - Browser path: `curl -s localhost:5173/api/health` returns the same JSON (Vite proxy intact).
@@ -225,11 +225,11 @@ server/
 
 ## 3. Definition of Done (Phase 1)
 
-- [ ] Every task above ticked, one commit each.
-- [ ] `npm test --workspace server` green.
-- [ ] Server refuses to start on invalid env.
-- [ ] No stack traces in production errors; every error has the `{ error: { code, message, requestId } }` shape.
-- [ ] Secrets never logged (authorization header redacted).
-- [ ] `client/` untouched; zero Python files.
+- [x] Every task above ticked, one commit each.
+- [x] `npm test --workspace server` green.
+- [x] Server refuses to start on invalid env.
+- [x] No stack traces in production errors; every error has the `{ error: { code, message, requestId } }` shape.
+- [x] Secrets never logged (authorization header redacted).
+- [x] `client/` untouched; zero Python files.
 
 **When finished, report:** the Express major version used, test count, and anything you could not do. Then wait for the Phase 2 file.
