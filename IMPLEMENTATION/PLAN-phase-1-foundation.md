@@ -179,7 +179,7 @@ server/
     9. errorHandler
   - Commit: `feat(server): createApp with security middleware stack`
 
-- [ ] **T1.11 `src/server.js` — listen and graceful shutdown**
+- [x] **T1.11 `src/server.js` — listen and graceful shutdown**
   - **Read first:** `/tmp/skills-mcollina/skills/node/rules/graceful-shutdown.md`.
   - `createApp()` → `http.createServer(app)` → listen on `env.PORT`; log the URL.
   - On `SIGINT`/`SIGTERM`: log, `server.close()`, call a `shutdownHooks` array (empty now; Phase 2 adds Prisma disconnect), force `process.exit(1)` after 10 s if not closed. Guard against double-signal.
