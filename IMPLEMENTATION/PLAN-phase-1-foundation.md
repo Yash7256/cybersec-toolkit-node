@@ -87,7 +87,7 @@ server/
   - Node must be ≥ 20. If lower, stop and tell the user.
   - No commit.
 
-- [ ] **T1.2 Install dependencies**
+- [x] **T1.2 Install dependencies**
   - Run (from repo root, use the workspace name from T1.1; examples assume `server`):
     ```bash
     npm i cors helmet dotenv zod pino pino-http express-rate-limit --workspace server
