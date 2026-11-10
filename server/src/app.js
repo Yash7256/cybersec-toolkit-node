@@ -11,7 +11,7 @@ import errorHandler from './middleware/errorHandler.js'
 import apiRouter from './routes/index.js'
 import AppError from './utils/AppError.js'
 
-export function createApp({ env = defaultEnv, logger = createLogger(env) } = {}) {
+export function createApp({ env = defaultEnv, logger = createLogger(env), routes = apiRouter() } = {}) {
   const app = express()
 
   app.disable('x-powered-by')
@@ -59,11 +59,11 @@ export function createApp({ env = defaultEnv, logger = createLogger(env) } = {})
     }),
   )
 
-  app.use('/api', apiRouter())
+  app.use('/api', routes)
 
   app.use(notFound())
 
-  app.use(errorHandler(logger))
+  app.use(errorHandler(logger, { isProduction: env.NODE_ENV === 'production' }))
 
   return app
 }

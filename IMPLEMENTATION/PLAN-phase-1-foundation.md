@@ -198,7 +198,7 @@ server/
 
 ### Block F — Tests
 
-- [ ] **T1.13 Vitest config**
+- [x] **T1.13 Vitest config**
   - **Read first:** `/tmp/skills-mcollina/skills/node/rules/testing.md` (skim) and VITEST "Configuring".
   - `server/vitest.config.js`: `environment:'node'`, `include:['tests/**/*.test.js']`, set `NODE_ENV=test` and `LOG_LEVEL=silent` via `test.env`.
   - Commit: `test(server): vitest config`

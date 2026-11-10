@@ -1,7 +1,7 @@
 import { ZodError, z } from 'zod'
 import AppError from '../utils/AppError.js'
 
-export default function errorHandler(logger = console) {
+export default function errorHandler(logger = console, { isProduction = process.env.NODE_ENV === 'production' } = {}) {
   return (err, req, res, next) => {
     if (res.headersSent) {
       next(err)
@@ -34,7 +34,7 @@ export default function errorHandler(logger = console) {
     } else {
       statusCode = 500
       code = 'INTERNAL_ERROR'
-      message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message
+      message = isProduction ? 'Internal server error' : err.message
     }
 
     const logPayload = {
