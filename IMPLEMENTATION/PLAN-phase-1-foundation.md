@@ -140,7 +140,7 @@ server/
 
 ### Block D — Middleware & routes
 
-- [ ] **T1.7 `middleware/requestId.js` + (Express 4 only) `utils/asyncHandler.js`**
+- [x] **T1.7 `middleware/requestId.js` + (Express 4 only) `utils/asyncHandler.js`**
   - requestId: reuse inbound `x-request-id` only if it matches `/^[A-Za-z0-9._-]{8,64}$/`, else `crypto.randomUUID()`. Set `req.id` and response header `x-request-id`.
   - Commit: `feat(server): request id middleware`
 
