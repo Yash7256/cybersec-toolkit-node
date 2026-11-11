@@ -6,3 +6,77 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// ───────────── Enums ─────────────
+enum UserTier {
+  FREE
+  PAID
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum ToolName {
+  PORT_SCAN
+  WEBAPP_SCAN
+  DNS
+  WHOIS
+  PING
+  TRACEROUTE
+  SSL
+  HTTP_HEADERS
+  SUBDOMAIN
+  GEOIP
+}
+
+enum RunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMED_OUT
+}
+
+enum Protocol {
+  TCP
+  UDP
+}
+
+enum PortState {
+  OPEN
+  CLOSED
+  FILTERED
+  OPEN_FILTERED
+}
+
+enum Severity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ReportFormat {
+  JSON
+  CSV
+  PDF
+}
+
+// ───────────── Identity ─────────────
+model User {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  clerkUserId String    @unique @map("clerk_user_id") @db.VarChar(64)
+  email       String?   @unique @db.VarChar(320)      // stored lower-cased; set NULL on account deletion
+  tier        UserTier  @default(FREE)
+  role        UserRole  @default(USER)
+  isActive    Boolean   @default(true) @map("is_active")
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("users")
+}

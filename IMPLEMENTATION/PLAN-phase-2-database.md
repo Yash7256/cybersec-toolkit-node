@@ -113,7 +113,7 @@ docs/
 
 > Migration command pattern (from `server/`): `npx prisma migrate dev --name <name>`. Verify tables with `docker compose exec db psql -U cybersec -c '\d <table>'` or `npx prisma db execute --stdin` with `select ...`. After each slice run `git status --short | head` to confirm a new folder appeared in `prisma/migrations/`.
 
-- [ ] **T2.5 Enums + `users`**
+- [x] **T2.5 Enums + `users`**
   - From `DATABASE-DESIGN.md` §4 copy: all 8 **enums** and `model User`. (Other models referenced by User's relation fields — `ToolRun`, `UsageCounter`, `Report`, `AuditLog` — are added in later tasks: for now **omit those relation lines** from `User`, then re-add them as each model arrives.)
   - Migrate: `init_users_and_enums`.
   - Verify: `\d users` shows `clerk_user_id` UNIQUE, `email` UNIQUE, timestamptz columns; `\dT` lists the enums.
