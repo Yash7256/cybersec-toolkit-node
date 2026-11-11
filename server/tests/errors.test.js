@@ -5,11 +5,11 @@ import { createApp } from '../src/app.js'
 import { parseEnv } from '../src/config/env.js'
 import { createLogger } from '../src/utils/logger.js'
 
-const silentEnv = parseEnv({})
+const silentEnv = parseEnv(process.env)
 const silentLogger = createLogger({ ...silentEnv, LOG_LEVEL: 'silent' })
 
 function makeApp(envOverrides = {}, routes) {
-  const env = parseEnv(envOverrides)
+  const env = parseEnv({ ...process.env, ...envOverrides })
   return createApp({
     env,
     logger: createLogger({ ...env, LOG_LEVEL: 'silent' }),

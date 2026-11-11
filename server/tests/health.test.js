@@ -4,7 +4,7 @@ import { createApp } from '../src/app.js'
 import { parseEnv } from '../src/config/env.js'
 import { createLogger } from '../src/utils/logger.js'
 
-const env = parseEnv({})
+const env = parseEnv(process.env)
 const silentLogger = createLogger({ ...env, LOG_LEVEL: 'silent' })
 const app = createApp({ env, logger: silentLogger })
 

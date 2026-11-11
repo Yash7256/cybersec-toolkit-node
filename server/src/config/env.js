@@ -23,6 +23,13 @@ const corsOrigins = z
   .transform((value) => value.split(',').map((entry) => entry.trim()).filter((entry) => entry.length > 0))
   .pipe(z.array(z.string().refine(isUrlOrigin, { message: 'must be a valid URL origin' })).min(1))
 
+const pgConnectionString = z
+  .string()
+  .min(1)
+  .refine((value) => value.startsWith('postgres://') || value.startsWith('postgresql://'), {
+    message: 'must start with postgres:// or postgresql://',
+  })
+
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
@@ -32,6 +39,11 @@ const EnvSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1000).default(60000),
   RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(100),
   BODY_LIMIT: z.string().default('100kb'),
+  DATABASE_URL: pgConnectionString,
+  DIRECT_URL: pgConnectionString,
+  DB_POOL_MAX: z.coerce.number().int().min(1).default(10),
+  DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().min(0).default(10000),
+  DB_IDLE_TX_TIMEOUT_MS: z.coerce.number().int().min(0).default(15000),
 })
 
 export function parseEnv(raw = process.env) {

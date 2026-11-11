@@ -7,6 +7,8 @@ export default defineConfig({
     env: {
       NODE_ENV: 'test',
       LOG_LEVEL: 'silent',
+      DATABASE_URL: 'postgresql://test:test@localhost:5432/cybersec_test',
+      DIRECT_URL: 'postgresql://test:test@localhost:5432/cybersec_test',
     },
   },
 })

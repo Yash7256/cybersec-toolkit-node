@@ -101,7 +101,7 @@ docs/
   - Verify: `npx prisma validate --schema server/prisma/schema.prisma` (path per your workspace) passes with an empty model set.
   - Commit: `chore(db): install prisma and base config`
 
-- [ ] **T2.4 Extend env validation (`src/config/env.js`)**
+- [x] **T2.4 Extend env validation (`src/config/env.js`)**
   - Add: `DATABASE_URL` (required, must start with `postgres://` or `postgresql://`), `DIRECT_URL` (required), `DB_POOL_MAX` (int, default 10), `DB_STATEMENT_TIMEOUT_MS` (int, default 10000), `DB_IDLE_TX_TIMEOUT_MS` (int, default 15000).
   - Update `server/.env.example` with all new vars and comments (use placeholder values, never real credentials).
   - Update `tests/env.test.js`: missing `DATABASE_URL` throws with a readable message; defaults applied.
