@@ -9,9 +9,23 @@ import requestId from './middleware/requestId.js'
 import notFound from './middleware/notFound.js'
 import errorHandler from './middleware/errorHandler.js'
 import apiRouter from './routes/index.js'
+import webhookRouter from './routes/webhooks.js'
 import AppError from './utils/AppError.js'
+import { createAuth } from './middleware/auth.js'
 
-export function createApp({ env = defaultEnv, logger = createLogger(env), routes = apiRouter() } = {}) {
+export function createApp({
+  env = defaultEnv,
+  logger = createLogger(env),
+  auth,
+  clerkClient,
+  routes,
+  webhooks,
+  extraRoutes,
+} = {}) {
+  const resolvedAuth = auth ?? createAuth(env)
+  const resolvedRoutes = routes ?? apiRouter({ auth: resolvedAuth, clerkClient, env })
+  const resolvedWebhooks = webhooks ?? webhookRouter({ env, logger })
+
   const app = express()
 
   app.disable('x-powered-by')
@@ -44,6 +58,26 @@ export function createApp({ env = defaultEnv, logger = createLogger(env), routes
     }),
   )
 
+  // Webhooks need the exact raw bytes for signature verification, so they are
+  // mounted before express.json() and before auth. They get their own limiter.
+  app.use(
+    '/api/webhooks',
+    rateLimit({
+      windowMs: 60_000,
+      limit: 300,
+      standardHeaders: 'draft-8',
+      legacyHeaders: false,
+      handler: (req, res, next) => {
+        next(AppError.tooMany())
+      },
+    }),
+  )
+  app.use(
+    '/api/webhooks',
+    express.raw({ type: 'application/json', limit: '1mb' }),
+    resolvedWebhooks,
+  )
+
   app.use(express.json({ limit: env.BODY_LIMIT }))
 
   app.use(
@@ -59,7 +93,13 @@ export function createApp({ env = defaultEnv, logger = createLogger(env), routes
     }),
   )
 
-  app.use('/api', routes)
+  app.use('/api', resolvedAuth.middleware)
+
+  app.use('/api', resolvedRoutes)
+
+  if (extraRoutes) {
+    app.use('/api', extraRoutes)
+  }
 
   app.use(notFound())
 
