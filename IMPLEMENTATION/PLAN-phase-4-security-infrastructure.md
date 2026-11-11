@@ -130,7 +130,7 @@ tests/
   - `npm i ioredis rate-limiter-flexible ipaddr.js prom-client --workspace server`. Verify with `npm ls --workspace server --depth=0 | tail -n 20`.
   - Commit: `chore(server): add redis, rate limiter, ip and metrics libs`
 
-- [ ] **T4.4 Redis client (`src/redis/client.js`, `keys.js`)**
+- [x] **T4.4 Redis client (`src/redis/client.js`, `keys.js`)**
   - **Read first:** IOREDIS README ("Auto-reconnect", "Offline queue", "Error handling").
   - Singleton ioredis: auto-connect, `enableOfflineQueue: false` (commands fail fast when down), `maxRetriesPerRequest: 1`, `connectTimeout: 3000`, `retryStrategy: n => Math.min(n * 200, 5000)`. **No `keyPrefix`.**
   - `waitForReady(timeoutMs = 5000)`: resolves `true`/`false` (never throws). Boot continues **degraded** if false.
