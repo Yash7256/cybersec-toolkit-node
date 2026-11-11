@@ -79,6 +79,7 @@ model User {
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   usageCounters UsageCounter[]
+  toolRuns      ToolRun[]
 
   @@map("users")
 }
@@ -96,4 +97,47 @@ model UsageCounter {
   @@id([userId, tool, usageDate])
   @@index([usageDate])                                  // retention sweep
   @@map("usage_counters")
+}
+
+// ───────────── Runs (hot, narrow table) ─────────────
+model ToolRun {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  tool         ToolName
+  target       String    @db.VarChar(255)               // exactly as submitted
+  targetKey    String    @map("target_key") @db.VarChar(255) // normalized: lower-case host / canonical IP
+  status       RunStatus @default(QUEUED)
+  options      Json?     @db.JsonB                      // validated tool options
+  summary      Json?     @db.JsonB                      // tiny (<1 KB): counts, risk score — for list views
+  progressPct  Int       @default(0) @map("progress_pct") @db.SmallInt
+  attempt      Int       @default(0) @db.SmallInt
+  workerId     String?   @map("worker_id") @db.VarChar(100)
+  heartbeatAt  DateTime? @map("heartbeat_at") @db.Timestamptz(3)
+  errorCode    String?   @map("error_code") @db.VarChar(60)
+  errorMessage String?   @map("error_message") @db.VarChar(1000)
+  queuedAt     DateTime  @default(now()) @map("queued_at") @db.Timestamptz(3)
+  startedAt    DateTime? @map("started_at") @db.Timestamptz(3)
+  finishedAt   DateTime? @map("finished_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  result RunResult?
+
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])          // Q3
+  @@index([userId, tool, createdAt(sort: Desc)])                    // Q4
+  @@index([userId, tool, targetKey, createdAt(sort: Desc)])         // Q5
+  @@map("tool_runs")
+  // Partial indexes for Q6/Q7 are added in the raw-SQL migration (Prisma cannot express WHERE).
+  // findings and reports relations are added in later slices.
+}
+
+// Full output, 1:1, TOASTed JSONB. Never joined in list queries.
+model RunResult {
+  runId     String   @id @map("run_id") @db.Uuid
+  data      Json     @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  run ToolRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@map("run_results")
 }
