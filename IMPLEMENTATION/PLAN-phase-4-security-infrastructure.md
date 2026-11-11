@@ -254,7 +254,7 @@ tests/
   - Redis down → both fail **open** (log + metric).
   - Commit: `feat(security): per-target limiter and blocked-attempt cooldown`
 
-- [ ] **T4.17 Outbound limiter + token bucket**
+- [x] **T4.17 Outbound limiter + token bucket**
   - `middleware`-independent utilities for **later phases** (NVD, GeoIP provider at ~55/min, scan pacing):
     - `security/outboundLimiter.js`: `createOutboundLimiter({ name, points, durationSec, maxWaitMs })` → `{ acquire(cost = 1) }` that **sleeps** until a Redis slot is free (shared across processes), throws `AppError(503, 'UPSTREAM_BUSY')` if the wait would exceed `maxWaitMs`; memory insurance on Redis failure.
     - `security/tokenBucket.js`: in-process `TokenBucket({ ratePerSec, burst })` with `async take(n = 1)` — a port of the old Python bucket's behavior (continuous refill, burst cap), used later to pace connect attempts. Use an injectable clock/`setTimeout` for tests; **no busy-wait**.
