@@ -3,6 +3,7 @@ import pino from 'pino'
 const REDACTION_PATHS = [
   'req.headers.authorization',
   'req.headers.cookie',
+  'req.headers["svix-signature"]',
   'res.headers["set-cookie"]',
   '*.password',
   '*.token',
