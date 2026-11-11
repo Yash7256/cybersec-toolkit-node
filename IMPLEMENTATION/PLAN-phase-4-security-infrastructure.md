@@ -188,7 +188,7 @@ tests/
   - **Unicode attack:** fullwidth `１２７.０.０.１` and `ⓛocalhost` must end up **blocked/ambiguous**, never allowed.
   - Commit: `test(security): host normalization table`
 
-- [ ] **T4.10 `security/resolve.js` — `resolveTarget` and `pinnedLookup`**
+- [x] **T4.10 `security/resolve.js` — `resolveTarget` and `pinnedLookup`**
   - **Read first:** NODE-DNS (`lookup` with `all:true`, `verbatim:true`), NODE-NET (`lookup` option signature, including the `all` variant), OWASP-SSRF "DNS pinning".
   - `resolveTarget(value, { kind, timeoutMs, lookup = dns.promises.lookup })`:
     - `kind==='ip'` → `classifyIp`; blocked → `TARGET_BLOCKED`.
