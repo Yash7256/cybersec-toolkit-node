@@ -149,7 +149,7 @@ tests/
 
 ### Block B — Target policy (security core)
 
-- [ ] **T4.6 `security/ipPolicy.js` — `classifyIp(input)`**
+- [x] **T4.6 `security/ipPolicy.js` — `classifyIp(input)`**
   - **Read first:** IANA-IPV4 and IANA-IPV6 special-purpose tables; IPADDR README ("range()", "process()", "isIPv4MappedAddress", "parse").
   - Returns `{ allowed: boolean, reason: string|null, normalized: string|null, family: 4|6|null }`. **Pure, sync, no I/O.**
   - Steps: reject non-strings / > 45 chars / any whitespace or `%` zone id (`fe80::1%eth0`) → `reason:'malformed'`. Parse with ipaddr.js. **Unwrap and re-check the embedded IPv4** for: IPv4-mapped `::ffff:0:0/96`, IPv4-compatible `::/96`, NAT64 `64:ff9b::/96`, 6to4 `2002::/16`. Then deny by range.
