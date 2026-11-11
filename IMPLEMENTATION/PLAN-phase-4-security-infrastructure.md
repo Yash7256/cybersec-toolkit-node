@@ -180,7 +180,7 @@ tests/
     7. Hostname rules: labels 1–63 chars, `[a-z0-9-]`, no leading/trailing `-` (allow `_` only if you document why; default **no**); must contain ≥ 1 dot (reject single-label such as `intranet`); reject names `localhost` and suffixes `.localhost .local .internal .localdomain .lan .home.arpa .corp .intranet` → `TARGET_BLOCKED`.
   - Commit: `feat(security): host normalization and canonicalization`
 
-- [ ] **T4.9 `tests/unit/host-policy.test.js`**
+- [x] **T4.9 `tests/unit/host-policy.test.js`**
   - Accept: `Example.COM` → `example.com`; `example.com.` → `example.com`; `xn--bcher-kva.example` ok; `8.8.8.8` → ip; `[2606:4700:4700::1111]` → ip; `münchen.de` → punycode.
   - Reject `TARGET_AMBIGUOUS`: `2130706433`, `0x7f000001`, `0x7f.0.0.1`, `0177.0.0.1`, `127.1`, `1.2.3`, `017700000001`.
   - Reject `TARGET_INVALID`: `user@evil.com`, `http://example.com`, `example.com/path`, `example.com:80`, `exa mple.com`, `example.com\n`, `exa\0mple.com`, `a..b.com`, `-bad.com`, `bad-.com`, a 64-char label, a 254-char host, `''`, `null`.
