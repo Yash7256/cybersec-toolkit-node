@@ -208,7 +208,7 @@ tests/
   - Messages for every policy failure: **generic** (`"This target is not allowed."`, `"Target could not be resolved."`) + a stable `code`; the specific `reason` is returned separately to the caller as `err.reason` (internal, **not serialized** to the client).
   - Commit: `feat(security): target policy facade`
 
-- [ ] **T4.12 `tests/unit/target-policy.test.js`**
+- [x] **T4.12 `tests/unit/target-policy.test.js`**
   - Public host (stub resolver) → ok, `targetKey` lower-cased; private flag **off** → `127.0.0.1` blocked; flag **on** (dev) → allowed but `0.0.0.0` still blocked; list of 257 → `TARGET_INVALID`; `/24` expands to 256 and a `/23` is rejected; IPv6 CIDR rejected; duplicates deduped; failure reports an index.
   - **No-leak test:** for 10 blocked inputs, `JSON.stringify(err)` and `err.message` contain neither a resolved IP nor a CIDR nor the word "private"/"internal".
   - URL schema: `ftp://x.com`, `http://user:pw@x.com`, `http://x.com@evil.com`, `http://[::1]/` → rejected; `https://example.com:8443/a?b=c` → ok.
