@@ -78,5 +78,22 @@ model User {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  usageCounters UsageCounter[]
+
   @@map("users")
+}
+
+// ───────────── Quota (1 row per user/tool/day) ─────────────
+model UsageCounter {
+  userId    String   @map("user_id") @db.Uuid
+  tool      ToolName
+  usageDate DateTime @map("usage_date") @db.Date
+  used      Int      @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, tool, usageDate])
+  @@index([usageDate])                                  // retention sweep
+  @@map("usage_counters")
 }
