@@ -25,11 +25,12 @@ export default function healthRouter() {
       for (const { name, check } of readinessChecks) {
         try {
           checks[name] = await check()
-        } catch (err) {
-          checks[name] = { ok: false, error: err.message }
+        } catch {
+          // No internals leaked: a failed dependency is reported as 'fail' only.
+          checks[name] = 'fail'
         }
       }
-      const failed = Object.values(checks).some((result) => result?.ok === false)
+      const failed = Object.values(checks).includes('fail')
       res.status(failed ? 503 : 200).json({
         status: failed ? 'not_ready' : 'ready',
         checks,

@@ -2,6 +2,8 @@ import http from 'node:http'
 import { createApp } from './app.js'
 import { env } from './config/env.js'
 import { createLogger } from './utils/logger.js'
+import { registerReadinessCheck } from './routes/health.js'
+import { pingDb, disconnect } from './db/client.js'
 
 const logger = createLogger(env)
 const app = createApp({ env, logger })
@@ -14,6 +16,12 @@ const shutdownHooks = []
 export function onShutdown(hook) {
   shutdownHooks.push(hook)
 }
+
+registerReadinessCheck('db', async () => {
+  await pingDb()
+  return 'ok'
+})
+onShutdown(disconnect)
 
 let shuttingDown = false
 async function shutdown(signal, exitCode = 0) {
