@@ -80,6 +80,7 @@ model User {
 
   usageCounters UsageCounter[]
   toolRuns      ToolRun[]
+  reports       Report[]
 
   @@map("users")
 }
@@ -123,6 +124,7 @@ model ToolRun {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   result RunResult?
   findings PortFinding[]
+  reports Report[]
 
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])          // Q3
   @@index([userId, tool, createdAt(sort: Desc)])                    // Q4
@@ -203,4 +205,24 @@ model ServiceCveLookup {
 
   @@index([expiresAt])
   @@map("service_cve_lookups")
+}
+
+// ───────────── Reports (metadata only; files live in object storage) ─────────────
+model Report {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  userId     String       @map("user_id") @db.Uuid
+  runId      String       @map("run_id") @db.Uuid
+  format     ReportFormat
+  storageKey String       @map("storage_key") @db.VarChar(500)
+  sizeBytes  Int          @map("size_bytes")
+  sha256     String       @db.Char(64)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt  DateTime?    @map("expires_at") @db.Timestamptz(3)
+
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  run ToolRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])                           // Q11
+  @@index([runId])
+  @@map("reports")
 }
