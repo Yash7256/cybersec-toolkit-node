@@ -10,7 +10,12 @@
     "test": "vitest run --project unit",
     "test:watch": "vitest",
     "test:db": "vitest run --project db",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:generate": "prisma generate",
     "db:seed": "node prisma/seed.js",
+    "db:reset": "node -e \"if(process.env.NODE_ENV==='production'){console.error('Refusing db:reset in production');process.exit(1)}\" && prisma migrate reset --force",
+    "db:studio": "prisma studio",
     "contract:emit": "prisma contract emit"
   },
   "dependencies": {
