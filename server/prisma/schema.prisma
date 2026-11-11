@@ -1,6 +1,11 @@
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
+  runtime  = "nodejs"
+  moduleFormat = "esm"
+  // JS ESM project on Node 24 (native type stripping): .ts output with .ts imports
+  generatedFileExtension = "ts"
+  importFileExtension = "ts"
 }
 
 datasource db {

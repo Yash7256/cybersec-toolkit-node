@@ -154,7 +154,7 @@ docs/
   - Verify with psql: `\d tool_runs` lists the 2 partial indexes and 5 CHECK constraints; `select relname, relrowsecurity from pg_class where relname in ('users','tool_runs','audit_logs');` all `t`.
   - Commit: `feat(db): check constraints, partial indexes, RLS, autovacuum tuning`
 
-- [ ] **T2.13 Whole-schema audit**
+- [x] **T2.13 Whole-schema audit**
   - `npx prisma validate`, `npx prisma migrate status` (must say "Database schema is up to date"), `npx prisma generate`.
   - Compare against the design: list tables with `\dt` — expected exactly **11**: `users usage_counters tool_runs run_results port_findings cves finding_cves service_cve_lookups reports webhook_events audit_logs` (+ `_prisma_migrations`). Report any difference.
   - Prove idempotency: drop and recreate the DEV database (`npx prisma migrate reset --force`) and confirm all migrations replay cleanly from zero.
@@ -162,7 +162,7 @@ docs/
 
 ### Block C — Runtime client & first repositories
 
-- [ ] **T2.14 `src/db/client.js`**
+- [x] **T2.14 `src/db/client.js`**
   - **Read first:** `prisma-client-api` skill (client instantiation, adapters) and `/tmp/skills-supabase/.../references/conn-*` (pool sizing).
   - Export a singleton `prisma` created once (module-level), using the driver adapter with a `pg` Pool: `max = env.DB_POOL_MAX`, `statement_timeout = env.DB_STATEMENT_TIMEOUT_MS`, `idle_in_transaction_session_timeout = env.DB_IDLE_TX_TIMEOUT_MS`, `connectionTimeoutMillis: 5000`.
   - Export `disconnect()` (ends client and pool) and `pingDb({ timeoutMs = 2000 })` which runs `SELECT 1` and rejects on timeout.
