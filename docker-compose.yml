@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:17
+    container_name: cybersec-db
+    environment:
+      POSTGRES_USER: cybersec
+      POSTGRES_PASSWORD: cybersec
+      POSTGRES_DB: cybersec
+    ports:
+      - "5433:5432" # host 5432 is taken by the system PostgreSQL 18
+    volumes:
+      - cybersec_db_data:/var/lib/postgresql/data
+      - ./docker/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cybersec -d cybersec"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  cybersec_db_data:
