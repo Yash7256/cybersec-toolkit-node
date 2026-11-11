@@ -159,7 +159,7 @@ tests/
   - `reason` values (enum, used as metric label): `loopback private link_local cgnat metadata multicast reserved documentation unspecified translation malformed`.
   - Commit: `feat(security): classifyIp with unwrapping and IANA deny list`
 
-- [ ] **T4.7 `tests/unit/ip-policy.test.js` (table-driven, ≥ 80 cases)**
+- [x] **T4.7 `tests/unit/ip-policy.test.js` (table-driven, ≥ 80 cases)**
   - **Allowed:** `8.8.8.8, 1.1.1.1, 9.9.9.9, 172.15.255.255, 172.32.0.0, 100.63.255.255, 100.128.0.0, 193.0.0.1, 2606:4700:4700::1111, 2001:4860:4860::8888`.
   - **Blocked boundaries:** `10.0.0.0, 10.255.255.255, 172.16.0.0, 172.31.255.255, 100.64.0.0, 100.127.255.255, 192.168.0.1, 169.254.169.254, 0.0.0.0, 0.1.2.3, 127.0.0.1, 127.255.255.255, 224.0.0.1, 239.255.255.255, 240.0.0.1, 255.255.255.255, 198.18.0.1, 198.19.255.255, 192.0.2.1`.
   - **IPv6 blocked:** `::, ::1, fe80::1, fc00::1, fd00:ec2::254, ff02::1, 2001:db8::1, 2001::1 (Teredo)`.
