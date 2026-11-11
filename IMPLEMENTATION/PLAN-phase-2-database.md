@@ -86,7 +86,7 @@ docs/
   - Report: installed Node version, whether `docker` is available (`docker -v`), and the Prisma major version the skill targets.
   - No commit.
 
-- [ ] **T2.2 Provision Postgres (choose ONE; ask the user which if unclear)**
+- [x] **T2.2 Provision Postgres (choose ONE; ask the user which if unclear)**
   - **Option A — local Docker (recommended for dev/test).** Create root `docker-compose.yml`: service `db` image `postgres:17`, env `POSTGRES_USER=cybersec POSTGRES_PASSWORD=cybersec POSTGRES_DB=cybersec`, port `5432:5432`, named volume, `healthcheck: pg_isready -U cybersec`. Add an init script mounted into `/docker-entrypoint-initdb.d/` that also creates database `cybersec_test`.
     - Run `docker compose up -d db`, then wait for healthy.
     - URLs: `DATABASE_URL=postgresql://cybersec:cybersec@localhost:5432/cybersec` , `DIRECT_URL` = same, `TEST_DATABASE_URL=postgresql://cybersec:cybersec@localhost:5432/cybersec_test`.
@@ -94,7 +94,7 @@ docs/
   - Put the values in `server/.env` ONLY (gitignored). Verify the connection with `node -e` + `pg`, or `docker compose exec db psql -U cybersec -c 'select version()'`.
   - Commit: `chore(db): local postgres via docker compose` (Option A only; Option B has nothing to commit).
 
-- [ ] **T2.3 Install and initialize Prisma**
+- [x] **T2.3 Install and initialize Prisma**
   - Follow the `prisma-database-setup` skill for the installed major version. Typically: `prisma` (dev), `@prisma/client`, and a driver adapter such as `@prisma/adapter-pg` + `pg`.
   - Create `prisma/schema.prisma` containing ONLY the `generator` and `datasource` blocks from `DATABASE-DESIGN.md` §4 (adjusted per skill) and the Prisma config file the version requires (datasource URL from `DIRECT_URL` for CLI/migrations).
   - Add `src/generated/` to `.gitignore`.

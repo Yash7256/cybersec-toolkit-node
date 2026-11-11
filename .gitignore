@@ -5,6 +5,9 @@ node_modules
 dist
 coverage
 
+# generated prisma client
+server/src/generated
+
 # env
 .env
 .env.*
