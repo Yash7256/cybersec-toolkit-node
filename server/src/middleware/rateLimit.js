@@ -55,7 +55,7 @@ function instrumentStore(client, onStoreError) {
   })
 }
 
-function setRateHeaders(res, result, { points, durationSec }) {
+export function setRateHeaders(res, result, { points, durationSec }) {
   const resetSec = Math.max(0, Math.ceil(result.msBeforeNext / 1000))
   res.set('RateLimit-Limit', String(points))
   res.set('RateLimit-Remaining', String(Math.max(0, result.remainingPoints)))
@@ -64,18 +64,16 @@ function setRateHeaders(res, result, { points, durationSec }) {
   return resetSec
 }
 
-export function createLimiter({
+export function createRateLimiter({
   name,
   points,
   durationSec,
   blockSec = 0,
-  keyFn = (req) => req.ip,
-  skip,
   redisClient = getRedisClient(),
   logger = defaultLogger,
 } = {}) {
   if (typeof name !== 'string' || name.length === 0) {
-    throw new Error('createLimiter requires a name')
+    throw new Error('createRateLimiter requires a name')
   }
   if (!Number.isInteger(points) || points < 1 || durationSec < 1) {
     throw new Error(`invalid limiter configuration for ${name}`)
@@ -97,6 +95,13 @@ export function createLimiter({
       blockDuration: blockSec,
     }),
   })
+
+  return { limiter, report }
+}
+
+export function createLimiter({ keyFn = (req) => req.ip, skip, ...options } = {}) {
+  const { name, points, durationSec } = options
+  const { limiter, report } = createRateLimiter(options)
 
   return async function rateLimiter(req, res, next) {
     try {

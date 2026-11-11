@@ -10,7 +10,7 @@ import errorHandler from './middleware/errorHandler.js'
 import apiRouter from './routes/index.js'
 import webhookRouter from './routes/webhooks.js'
 import { createAuth } from './middleware/auth.js'
-import { createLimiter } from './middleware/rateLimit.js'
+import { createLimiters } from './middleware/limiters.js'
 
 export function createApp({
   env = defaultEnv,
@@ -21,22 +21,20 @@ export function createApp({
   webhooks,
   extraRoutes,
 } = {}) {
-  const resolvedAuth = auth ?? createAuth(env)
-  const resolvedRoutes = routes ?? apiRouter({ auth: resolvedAuth, clerkClient, env })
+  const limiters = createLimiters({ env, logger })
+  const baseAuth = auth ?? createAuth(env)
+  const resolvedAuth = {
+    ...baseAuth,
+    requireAuth(req, res, next) {
+      baseAuth.requireAuth(req, res, (err) => {
+        if (err && err.statusCode === 401) limiters.authFail.penalize(req)
+        next(err)
+      })
+    },
+  }
+  const resolvedRoutes =
+    routes ?? apiRouter({ auth: resolvedAuth, clerkClient, env, limiters })
   const resolvedWebhooks = webhooks ?? webhookRouter({ env, logger })
-
-  const webhooksLimiter = createLimiter({
-    name: 'webhooks_ip',
-    points: 300,
-    durationSec: 60,
-    logger,
-  })
-  const globalLimiter = createLimiter({
-    name: 'global_ip',
-    points: env.RATE_LIMIT_MAX,
-    durationSec: Math.max(1, Math.ceil(env.RATE_LIMIT_WINDOW_MS / 1000)),
-    logger,
-  })
 
   const app = express()
 
@@ -72,7 +70,7 @@ export function createApp({
 
   // Webhooks need the exact raw bytes for signature verification, so they are
   // mounted before express.json() and before auth. They get their own limiter.
-  app.use('/api/webhooks', webhooksLimiter)
+  app.use('/api/webhooks', limiters.webhooksIp)
   app.use(
     '/api/webhooks',
     express.raw({ type: 'application/json', limit: '1mb' }),
@@ -81,7 +79,11 @@ export function createApp({
 
   app.use(express.json({ limit: env.BODY_LIMIT }))
 
-  app.use('/api', globalLimiter)
+  app.use('/api', limiters.globalIp)
+
+  // Reject blocked IPs before Clerk verification so failed attempts cost no
+  // upstream work.
+  app.use('/api', limiters.authFail.check)
 
   app.use('/api', resolvedAuth.middleware)
 

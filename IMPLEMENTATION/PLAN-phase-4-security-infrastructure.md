@@ -235,7 +235,7 @@ tests/
   - Remove `express-rate-limit` from `app.js`/`package.json` and migrate Phase 1's `tests/security.test.js` rate-limit test to the new middleware (same expectation: 4th request → 429 `RATE_LIMITED`).
   - Commit: `feat(security): redis-backed limiter factory replacing in-memory limiter`
 
-- [ ] **T4.15 `middleware/limiters.js` — the concrete limiters**
+- [x] **T4.15 `middleware/limiters.js` — the concrete limiters**
   | Name | Key | Limit | Where |
   |---|---|---|---|
   | `global_ip` | `req.ip` | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` (Phase 1 env) | all `/api` |

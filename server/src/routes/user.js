@@ -15,11 +15,13 @@ export default function userRouter({
   attachUser,
   clerkClient,
   env = defaultEnv,
+  limiters,
 } = {}) {
   const router = Router()
   const attach = attachUser ?? createAttachUser({ clerkClient })
 
   router.use(auth.requireAuth, attach)
+  if (limiters?.userGeneral) router.use(limiters.userGeneral)
 
   router.get(
     '/me',
