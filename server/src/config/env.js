@@ -30,6 +30,17 @@ const pgConnectionString = z
     message: 'must start with postgres:// or postgresql://',
   })
 
+const prefixedString = (prefix) =>
+  z.string().refine((value) => value.startsWith(prefix), {
+    message: `must start with ${prefix}`,
+  })
+
+// Empty string in .env means "not configured" until T3.21 sets a real secret.
+const optionalWebhookSecret = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  prefixedString('whsec_').optional()
+)
+
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
@@ -44,6 +55,19 @@ const EnvSchema = z.object({
   DB_POOL_MAX: z.coerce.number().int().min(1).default(10),
   DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().min(0).default(10000),
   DB_IDLE_TX_TIMEOUT_MS: z.coerce.number().int().min(0).default(15000),
+  CLERK_PUBLISHABLE_KEY: prefixedString('pk_'),
+  CLERK_SECRET_KEY: prefixedString('sk_'),
+  CLERK_WEBHOOK_SIGNING_SECRET: optionalWebhookSecret,
+  FREE_DAILY_LIMIT: z.coerce.number().int().min(1).default(5),
+  PAID_DAILY_LIMIT: z.coerce.number().int().min(1).default(100),
+}).superRefine((data, ctx) => {
+  if (data.NODE_ENV === 'production' && !data.CLERK_WEBHOOK_SIGNING_SECRET) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['CLERK_WEBHOOK_SIGNING_SECRET'],
+      message: 'is required in production',
+    })
+  }
 })
 
 export function parseEnv(raw = process.env) {
