@@ -7,8 +7,9 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "test": "vitest run",
+    "test": "vitest run --project unit",
     "test:watch": "vitest",
+    "test:db": "vitest run --project db",
     "db:seed": "node prisma/seed.js",
     "contract:emit": "prisma contract emit"
   },
