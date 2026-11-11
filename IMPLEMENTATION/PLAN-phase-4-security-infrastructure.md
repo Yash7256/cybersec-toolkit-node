@@ -199,7 +199,7 @@ tests/
   - Tests `tests/unit/resolve.test.js` (inject `lookup` stubs; no real DNS): public ok; **mixed public+private → blocked**; all private; CNAME-to-internal (stub returns `10.0.0.5`) → blocked; ENOTFOUND; timeout (fake timers, timer cleaned up); 40 addresses → capped at 16; **rebinding**: stub returns `1.2.3.4` the first call and `127.0.0.1` the second → `pinnedLookup` must still return only `1.2.3.4` and the stub must be called exactly once; error messages contain no IP.
   - Commit: `feat(security): single-shot resolution with validated pinning`
 
-- [ ] **T4.11 `security/targetPolicy.js` — the facade routes use**
+- [x] **T4.11 `security/targetPolicy.js` — the facade routes use**
   - `validateTarget(input, { env, resolver? })` → `{ target, targetKey, kind, addresses }`:
     `normalizeHost` → `resolveTarget` → `targetKey` = canonical lower-case host (or normalized IP) — this is what goes in `tool_runs.target_key`. `target` is the original string truncated to 255.
   - `allowPrivate`: honored only if `env.ALLOW_PRIVATE_TARGETS` (never from request input). When honored, still reject `0.0.0.0/8`, multicast, `240/4` and unspecified.

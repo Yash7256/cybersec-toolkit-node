@@ -3,6 +3,7 @@ import AppError from '../utils/AppError.js'
 import { classifyIp } from './ipPolicy.js'
 
 const MAX_ADDRESSES = 16
+const PRIVATE_REASONS = new Set(['private', 'loopback', 'link_local', 'cgnat', 'metadata'])
 
 function blocked(reason) {
   const err = new AppError(422, 'TARGET_BLOCKED', 'This target is not allowed.')
@@ -23,17 +24,23 @@ function withTimeout(promise, timeoutMs) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
 }
 
+// Development-only escape hatch: never populated from request input.
+export function classifyAddress(value, { allowPrivate = false } = {}) {
+  const result = classifyIp(value)
+  if (result.allowed) return { address: result.normalized, family: result.family }
+  if (allowPrivate && PRIVATE_REASONS.has(result.reason)) {
+    return { address: result.normalized, family: result.family }
+  }
+  throw blocked(result.reason)
+}
+
 export async function resolveTarget(
   value,
-  { kind, timeoutMs = 3000, lookup = dns.promises.lookup } = {}
+  { kind, timeoutMs = 3000, allowPrivate = false, lookup = dns.promises.lookup } = {}
 ) {
   if (kind === 'ip') {
-    const result = classifyIp(value)
-    if (!result.allowed) throw blocked(result.reason)
-    return {
-      host: result.normalized,
-      addresses: [{ address: result.normalized, family: result.family }],
-    }
+    const address = classifyAddress(value, { allowPrivate })
+    return { host: address.address, addresses: [address] }
   }
 
   let answers
@@ -59,9 +66,7 @@ export async function resolveTarget(
 
   const addresses = []
   for (const answer of unique) {
-    const result = classifyIp(answer.address)
-    if (!result.allowed) throw blocked(result.reason)
-    addresses.push({ address: result.normalized, family: result.family })
+    addresses.push(classifyAddress(answer.address, { allowPrivate }))
   }
 
   return { host: value, addresses }
