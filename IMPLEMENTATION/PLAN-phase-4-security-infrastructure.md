@@ -140,7 +140,7 @@ tests/
   - Test helper `flushTestRedis()` uses `FLUSHDB` but **aborts unless the URL ends with `/1`**.
   - Commit: `feat(infra): fail-fast redis client and key builder`
 
-- [ ] **T4.5 Metrics registry skeleton (`observability/metrics.js`)**
+- [x] **T4.5 Metrics registry skeleton (`observability/metrics.js`)**
   - **Read first:** PROM-NAMING; PROM-CLIENT README "Default metrics", "Custom metrics".
   - Dedicated `Registry`; `collectDefaultMetrics({ register, prefix: 'cst_' })`.
   - Define (all prefixed `cst_`): counters `policy_blocked_total{reason}`, `rate_limit_rejected_total{limiter}`, `rate_limit_store_errors_total{limiter}`, `quota_rejected_total{tool}`, `webhook_events_total{outcome}`; histogram `http_request_duration_seconds{method,route,status_class}` (buckets 0.005…10 s). Export helper functions (`recordBlocked(reason)` …) so call sites never touch labels directly.

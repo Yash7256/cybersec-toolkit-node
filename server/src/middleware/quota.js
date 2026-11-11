@@ -2,6 +2,7 @@ import { env as defaultEnv } from '../config/env.js'
 import { limitFor, nextResetAt } from '../config/limits.js'
 import * as usageRepo from '../db/repos/usageRepo.js'
 import { createLogger } from '../utils/logger.js'
+import { metrics } from '../observability/metrics.js'
 import AppError from '../utils/AppError.js'
 import asyncHandler from '../utils/asyncHandler.js'
 
@@ -33,6 +34,7 @@ export function enforceQuota(tool, env = defaultEnv) {
     res.set('X-Quota-Reset', resetsAt)
 
     if (!result.allowed) {
+      metrics.recordQuotaRejected(tool)
       res.set('Retry-After', String(secondsUntil(resetsAt)))
       throw new AppError(429, 'QUOTA_EXCEEDED', `Daily limit reached for ${tool}`, {
         limit,

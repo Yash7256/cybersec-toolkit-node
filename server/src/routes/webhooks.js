@@ -8,6 +8,7 @@ import * as defaultWebhookRepo from '../db/repos/webhookRepo.js'
 import * as defaultUserRepo from '../db/repos/userRepo.js'
 import * as defaultAuditRepo from '../db/repos/auditRepo.js'
 import { handleClerkEvent } from '../services/clerkSync.js'
+import { metrics } from '../observability/metrics.js'
 
 export default function webhookRouter({
   env = defaultEnv,
@@ -39,6 +40,7 @@ export default function webhookRouter({
 
       const claim = await repo.claim({ id: svixId, source: 'clerk', eventType: type })
       if (claim.duplicate) {
+        metrics.recordWebhookEvent('duplicate')
         logger.info({ svixId, type, outcome: 'duplicate' }, 'clerk webhook duplicate')
         res.json({ received: true, duplicate: true })
         return
@@ -47,10 +49,12 @@ export default function webhookRouter({
       try {
         const result = await handler(event, { userRepo, auditRepo })
         await repo.markProcessed(svixId)
+        metrics.recordWebhookEvent(result.handled ? 'processed' : 'ignored')
         logger.info({ svixId, type, outcome: 'processed' }, 'clerk webhook processed')
         res.json({ received: true, duplicate: false, handled: result.handled })
       } catch (err) {
         await repo.markFailed(svixId, err.message)
+        metrics.recordWebhookEvent('failed')
         logger.error({ svixId, type, outcome: 'failed' }, 'clerk webhook failed')
         throw err
       }
