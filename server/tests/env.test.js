@@ -6,6 +6,7 @@ const BASE_ENV = {
   DIRECT_URL: 'postgres://user:password@localhost:5432/cybersec',
   CLERK_PUBLISHABLE_KEY: 'pk_test_ZXhhbXBsZS5jb20k',
   CLERK_SECRET_KEY: 'sk_test_cGxhY2Vob2xkZXI=',
+  REDIS_URL: 'redis://localhost:6379/0',
 }
 
 describe('parseEnv', () => {
@@ -26,6 +27,19 @@ describe('parseEnv', () => {
       DB_IDLE_TX_TIMEOUT_MS: 15000,
       FREE_DAILY_LIMIT: 5,
       PAID_DAILY_LIMIT: 100,
+      ALLOW_PRIVATE_TARGETS: false,
+      DNS_TIMEOUT_MS: 3000,
+      USER_RATE_LIMIT_MAX: 300,
+      SUBMIT_RATE_LIMIT_USER: 10,
+      SUBMIT_RATE_LIMIT_IP: 30,
+      AUTH_FAIL_MAX: 20,
+      AUTH_FAIL_WINDOW_SEC: 600,
+      AUTH_FAIL_BLOCK_SEC: 900,
+      TARGET_HOURLY_LIMIT_GLOBAL: 20,
+      TARGET_HOURLY_LIMIT_USER: 5,
+      BLOCKED_ATTEMPTS_MAX: 5,
+      BLOCKED_ATTEMPTS_WINDOW_SEC: 600,
+      BLOCKED_COOLDOWN_SEC: 900,
     })
   })
 
@@ -46,6 +60,44 @@ describe('parseEnv', () => {
   it('accepts both postgres:// and postgresql:// schemes', () => {
     expect(parseEnv(BASE_ENV).DATABASE_URL).toBe(BASE_ENV.DATABASE_URL)
     expect(parseEnv(BASE_ENV).DIRECT_URL).toBe(BASE_ENV.DIRECT_URL)
+  })
+
+  it('requires a redis:// or rediss:// REDIS_URL', () => {
+    expect(() => parseEnv({ ...BASE_ENV, REDIS_URL: undefined })).toThrow(/REDIS_URL/)
+    expect(() => parseEnv({ ...BASE_ENV, REDIS_URL: 'http://localhost:6379' })).toThrow(/redis/)
+    expect(parseEnv({ ...BASE_ENV, REDIS_URL: 'rediss://localhost:6379/0' }).REDIS_URL).toBe(
+      'rediss://localhost:6379/0'
+    )
+  })
+
+  it('parses ALLOW_PRIVATE_TARGETS as a real boolean, never coerced', () => {
+    expect(parseEnv({ ...BASE_ENV, ALLOW_PRIVATE_TARGETS: 'false' }).ALLOW_PRIVATE_TARGETS).toBe(
+      false
+    )
+    expect(parseEnv({ ...BASE_ENV, ALLOW_PRIVATE_TARGETS: 'true' }).ALLOW_PRIVATE_TARGETS).toBe(
+      true
+    )
+    expect(() => parseEnv({ ...BASE_ENV, ALLOW_PRIVATE_TARGETS: 'yes' })).toThrow(
+      /ALLOW_PRIVATE_TARGETS/
+    )
+  })
+
+  it('refuses private targets in production', () => {
+    expect(() =>
+      parseEnv({
+        ...BASE_ENV,
+        NODE_ENV: 'production',
+        CLERK_WEBHOOK_SIGNING_SECRET: 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw',
+        ALLOW_PRIVATE_TARGETS: 'true',
+      })
+    ).toThrow(/ALLOW_PRIVATE_TARGETS/)
+  })
+
+  it('validates METRICS_TOKEN length and treats empty as unset', () => {
+    expect(parseEnv({ ...BASE_ENV, METRICS_TOKEN: '' }).METRICS_TOKEN).toBeUndefined()
+    expect(() => parseEnv({ ...BASE_ENV, METRICS_TOKEN: 'short' })).toThrow(/METRICS_TOKEN/)
+    const token = 'a'.repeat(24)
+    expect(parseEnv({ ...BASE_ENV, METRICS_TOKEN: token }).METRICS_TOKEN).toBe(token)
   })
 
   it('requires Clerk keys with the right prefixes', () => {

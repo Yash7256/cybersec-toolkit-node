@@ -35,6 +35,25 @@ const prefixedString = (prefix) =>
     message: `must start with ${prefix}`,
   })
 
+const redisConnectionString = z.string().refine(
+  (value) => value.startsWith('redis://') || value.startsWith('rediss://'),
+  { message: 'must start with redis:// or rediss://' }
+)
+
+// Never z.coerce.boolean(): it turns the string "false" into true.
+const envBoolean = z.preprocess(
+  (value) => (typeof value === 'boolean' ? (value ? 'true' : 'false') : value),
+  z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true')
+)
+
+const optionalToken = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z.string().min(24, { message: 'must be at least 24 characters' }).optional()
+)
+
 // Empty string in .env means "not configured" until T3.21 sets a real secret.
 const optionalWebhookSecret = z.preprocess(
   (value) => (value === '' ? undefined : value),
@@ -52,6 +71,7 @@ const EnvSchema = z.object({
   BODY_LIMIT: z.string().default('100kb'),
   DATABASE_URL: pgConnectionString,
   DIRECT_URL: pgConnectionString,
+  REDIS_URL: redisConnectionString,
   DB_POOL_MAX: z.coerce.number().int().min(1).default(10),
   DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().min(0).default(10000),
   DB_IDLE_TX_TIMEOUT_MS: z.coerce.number().int().min(0).default(15000),
@@ -60,12 +80,33 @@ const EnvSchema = z.object({
   CLERK_WEBHOOK_SIGNING_SECRET: optionalWebhookSecret,
   FREE_DAILY_LIMIT: z.coerce.number().int().min(1).default(5),
   PAID_DAILY_LIMIT: z.coerce.number().int().min(1).default(100),
+  ALLOW_PRIVATE_TARGETS: envBoolean,
+  METRICS_TOKEN: optionalToken,
+  DNS_TIMEOUT_MS: z.coerce.number().int().min(100).default(3000),
+  USER_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(300),
+  SUBMIT_RATE_LIMIT_USER: z.coerce.number().int().min(1).default(10),
+  SUBMIT_RATE_LIMIT_IP: z.coerce.number().int().min(1).default(30),
+  AUTH_FAIL_MAX: z.coerce.number().int().min(1).default(20),
+  AUTH_FAIL_WINDOW_SEC: z.coerce.number().int().min(1).default(600),
+  AUTH_FAIL_BLOCK_SEC: z.coerce.number().int().min(1).default(900),
+  TARGET_HOURLY_LIMIT_GLOBAL: z.coerce.number().int().min(1).default(20),
+  TARGET_HOURLY_LIMIT_USER: z.coerce.number().int().min(1).default(5),
+  BLOCKED_ATTEMPTS_MAX: z.coerce.number().int().min(1).default(5),
+  BLOCKED_ATTEMPTS_WINDOW_SEC: z.coerce.number().int().min(1).default(600),
+  BLOCKED_COOLDOWN_SEC: z.coerce.number().int().min(1).default(900),
 }).superRefine((data, ctx) => {
   if (data.NODE_ENV === 'production' && !data.CLERK_WEBHOOK_SIGNING_SECRET) {
     ctx.addIssue({
       code: 'custom',
       path: ['CLERK_WEBHOOK_SIGNING_SECRET'],
       message: 'is required in production',
+    })
+  }
+  if (data.NODE_ENV === 'production' && data.ALLOW_PRIVATE_TARGETS) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['ALLOW_PRIVATE_TARGETS'],
+      message: 'must be false in production',
     })
   }
 })

@@ -11,6 +11,9 @@ const unitEnv = {
   CLERK_WEBHOOK_SIGNING_SECRET: 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw',
   FREE_DAILY_LIMIT: '5',
   PAID_DAILY_LIMIT: '100',
+  REDIS_URL: 'redis://localhost:6379/1',
+  TEST_REDIS_URL: 'redis://localhost:6379/1',
+  ALLOW_PRIVATE_TARGETS: 'false',
 }
 
 const dbEnv = {
@@ -19,6 +22,9 @@ const dbEnv = {
   CLERK_PUBLISHABLE_KEY: unitEnv.CLERK_PUBLISHABLE_KEY,
   CLERK_SECRET_KEY: unitEnv.CLERK_SECRET_KEY,
   CLERK_WEBHOOK_SIGNING_SECRET: unitEnv.CLERK_WEBHOOK_SIGNING_SECRET,
+  REDIS_URL: unitEnv.REDIS_URL,
+  TEST_REDIS_URL: unitEnv.TEST_REDIS_URL,
+  ALLOW_PRIVATE_TARGETS: unitEnv.ALLOW_PRIVATE_TARGETS,
 }
 
 export default defineConfig({
