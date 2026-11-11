@@ -168,7 +168,7 @@ tests/
   - Verify: `npm test --workspace server -- ip-policy --reporter=dot 2>&1 | tail -n 15` green. If any case fails, fix `ipPolicy.js`, never the test.
   - Commit: `test(security): ip policy table`
 
-- [ ] **T4.8 `security/hostPolicy.js` — `normalizeHost(input)`**
+- [x] **T4.8 `security/hostPolicy.js` — `normalizeHost(input)`**
   - **Read first:** NODE-URL `domainToASCII`; OWASP-SSRF "URL parsing" notes.
   - Returns `{ kind: 'ip' | 'host', value }` or throws `AppError(422, code, msg)`. Pipeline, **in this order**:
     1. type/length (`≤ 253` after normalization) → `TARGET_INVALID`.
