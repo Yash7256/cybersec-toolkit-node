@@ -81,6 +81,7 @@ model User {
   usageCounters UsageCounter[]
   toolRuns      ToolRun[]
   reports       Report[]
+  auditLogs     AuditLog[]
 
   @@map("users")
 }
@@ -225,4 +226,36 @@ model Report {
   @@index([userId, createdAt(sort: Desc)])                           // Q11
   @@index([runId])
   @@map("reports")
+}
+
+// ───────────── Webhook idempotency ─────────────
+model WebhookEvent {
+  id          String    @id @db.VarChar(100)              // svix-id header
+  source      String    @db.VarChar(30)                   // "clerk"
+  eventType   String    @map("event_type") @db.VarChar(100)
+  receivedAt  DateTime  @default(now()) @map("received_at") @db.Timestamptz(3)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(3)
+  error       String?   @db.VarChar(1000)
+
+  @@index([receivedAt])
+  @@map("webhook_events")
+}
+
+// ───────────── Audit trail (append-only) ─────────────
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String   @db.VarChar(60)                     // "user.deleted", "tier.changed", "scan.blocked_target"
+  entityType String?  @map("entity_type") @db.VarChar(40)
+  entityId   String?  @map("entity_id") @db.VarChar(64)
+  ip         String?  @db.Inet
+  userAgent  String?  @map("user_agent") @db.VarChar(300)
+  metadata   Json?    @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt(sort: Desc)])                          // Q13
+  @@index([createdAt], type: Brin)                                   // range scans, ~1000x smaller than B-tree
+  @@map("audit_logs")
 }
