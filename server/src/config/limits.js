@@ -1,3 +1,7 @@
+export const MAX_PORT_LIST_ENTRIES = 1000
+export const MAX_PORT_RANGE_SPAN = 5000
+export const MAX_PORTS_PER_SCAN = 10000
+
 export function limitFor({ tier, role }, env) {
   if (role === 'ADMIN') return Infinity
   return tier === 'PAID' ? env.PAID_DAILY_LIMIT : env.FREE_DAILY_LIMIT

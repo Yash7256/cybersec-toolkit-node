@@ -215,7 +215,7 @@ tests/
   - Redirect: `Location: http://169.254.169.254/latest/meta-data/` from a public base → blocked.
   - Commit: `test(security): target policy facade`
 
-- [ ] **T4.13 `security/ports.js` — `parsePorts(input)` + `portsSchema`**
+- [x] **T4.13 `security/ports.js` — `parsePorts(input)` + `portsSchema`**
   - Accepts `"22,80,443,8000-8100"` or an array mixing numbers and `"a-b"` strings. Returns a **sorted unique** `number[]`.
   - Constants from `config/limits.js`: `MAX_PORT_LIST_ENTRIES=1000`, `MAX_PORT_RANGE_SPAN=5000` (`end - start + 1`), `MAX_PORTS_PER_SCAN=10000`.
   - **Check sizes before expanding:** compute each range's span and a running unique-count upper bound first; reject `1-65535` immediately without allocating.
