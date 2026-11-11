@@ -24,6 +24,9 @@ export default defineConfig({
           name: 'db',
           include: ['tests/db/**/*.test.js'],
           env: { NODE_ENV: 'test', LOG_LEVEL: 'silent' },
+          // Every DB test shares one database and calls truncateAll(); running
+          // files in parallel lets one file's TRUNCATE wipe another's fixtures.
+          fileParallelism: false,
           // globalSetup points DATABASE_URL/DIRECT_URL at TEST_DATABASE_URL
           // (guarded to end with _test) and applies migrations to it.
           globalSetup: ['tests/setup/globalSetup.js'],
