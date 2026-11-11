@@ -122,6 +122,7 @@ model ToolRun {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   result RunResult?
+  findings PortFinding[]
 
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])          // Q3
   @@index([userId, tool, createdAt(sort: Desc)])                    // Q4
@@ -140,4 +141,23 @@ model RunResult {
   run ToolRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@map("run_results")
+}
+
+// ───────────── Port-scan findings (high row count → bigint identity) ─────────────
+model PortFinding {
+  id        BigInt    @id @default(autoincrement())
+  runId     String    @map("run_id") @db.Uuid
+  port      Int
+  protocol  Protocol  @default(TCP)
+  state     PortState
+  service   String?   @db.VarChar(100)
+  version   String?   @db.VarChar(255)
+  banner    String?   @db.VarChar(2000)
+  risk      Severity?
+
+  run ToolRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, port, protocol])                                  // Q8
+  @@map("port_findings")
+  // cves relation is added in the CVE slice.
 }
