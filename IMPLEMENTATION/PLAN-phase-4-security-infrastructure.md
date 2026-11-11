@@ -126,7 +126,7 @@ tests/
   - Update `.env.example`, `vitest.config.js` `test.env` (use `TEST_REDIS_URL=redis://localhost:6379/1`, a **separate DB index**), and `tests/env.test.js` (prod + `ALLOW_PRIVATE_TARGETS=true` throws; `"false"` string → boolean false).
   - Commit: `feat(infra): redis service and security env vars`
 
-- [ ] **T4.3 Install packages**
+- [x] **T4.3 Install packages**
   - `npm i ioredis rate-limiter-flexible ipaddr.js prom-client --workspace server`. Verify with `npm ls --workspace server --depth=0 | tail -n 20`.
   - Commit: `chore(server): add redis, rate limiter, ip and metrics libs`
 
