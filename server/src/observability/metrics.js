@@ -28,6 +28,8 @@ const LIMITERS = new Set([
   'auth_fail',
   'webhooks_ip',
   'metrics',
+  'target',
+  'abuse',
 ])
 
 const TOOLS = new Set([

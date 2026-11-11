@@ -247,7 +247,7 @@ tests/
   - Export ready-to-mount middlewares (`submitLimiters = [submit_ip, submit_user]`). Update the Phase 3 mount order in `app.js` accordingly.
   - Commit: `feat(security): wire per-ip, per-user, submit, auth-failure and webhook limiters`
 
-- [ ] **T4.16 `security/abuseGuard.js` — victim protection**
+- [x] **T4.16 `security/abuseGuard.js` — victim protection**
   - `targetLimiter`: keys `tgt:global:<targetKey>` (`TARGET_HOURLY_LIMIT_GLOBAL`/h, shared by **all** users) and `tgt:user:<userId>:<targetKey>` (`TARGET_HOURLY_LIMIT_USER`/h). Exceeding either → `429 TARGET_RATE_LIMITED` (message: "This target has been scanned too often recently."). Runs **after** policy validation (it needs `targetKey`) and **before** quota, so being rate-limited never burns quota.
   - Blocked-attempt cooldown: `recordBlocked(userId)` increments a Redis counter (`BLOCKED_ATTEMPTS_WINDOW_SEC` TTL); at `BLOCKED_ATTEMPTS_MAX` it sets a cooldown key for `BLOCKED_COOLDOWN_SEC`. `assertNotCoolingDown(userId)` → `429 TARGET_ABUSE_COOLDOWN` with `Retry-After`. Runs at the **start** of the policy step.
   - On every policy rejection: `recordBlocked(...)`, metric `policy_blocked_total{reason}`, and `auditRepo.log({ action:'scan.blocked_target', actorId, ip, metadata:{ reason, tool, target:<first 255 chars> } })` (audit never throws).
