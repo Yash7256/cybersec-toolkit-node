@@ -225,7 +225,7 @@ tests/
 
 ### Block C — Rate limiting
 
-- [ ] **T4.14 `middleware/rateLimit.js` — `createLimiter()` and replace the Phase 1 limiter**
+- [x] **T4.14 `middleware/rateLimit.js` — `createLimiter()` and replace the Phase 1 limiter**
   - **Read first:** RLF wiki: "RateLimiterRedis", "insuranceLimiter", "blockDuration", "Express middleware".
   - `createLimiter({ name, points, durationSec, blockSec = 0, keyFn, skip })` → Express middleware:
     - Store: `RateLimiterRedis` using the Phase 4 client (explicit `keyPrefix: 'cst:rl:<name>'`), `insuranceLimiter: new RateLimiterMemory(same points/duration)`, `rejectIfRedisNotReady: true`.
