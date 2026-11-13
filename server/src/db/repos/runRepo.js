@@ -53,9 +53,10 @@ export async function requestCancel(runId, userId) { const rows = await prisma.$
 export async function countActiveForUser(userId) { const rows = await prisma.$queryRaw`SELECT count(*)::int AS n FROM tool_runs WHERE user_id=${userId}::uuid AND status IN ('QUEUED','RUNNING')`; return Number(rows[0]?.n ?? 0) }
 export async function refundOnce(runId) {
   return prisma.$transaction(async (tx) => {
-    const rows = await tx.$queryRaw`UPDATE tool_runs SET quota_refunded=true WHERE id=${runId}::uuid AND quota_date IS NOT NULL AND NOT quota_refunded RETURNING user_id, tool, quota_date`
+    const rows = await tx.$queryRaw`UPDATE tool_runs SET quota_refunded=true WHERE id=${runId}::uuid AND quota_date IS NOT NULL AND NOT quota_refunded RETURNING user_id, tool, quota_date, options`
     if (!rows.length) return false
-    await tx.$queryRaw`UPDATE usage_counters SET used=GREATEST(used-1,0), updated_at=now() WHERE user_id=${rows[0].user_id} AND tool=${rows[0].tool} AND usage_date=${rows[0].quota_date} RETURNING used`
+    const units = rows[0].tool === 'GEOIP_BULK' ? Math.max(1, rows[0].options?.targets?.length ?? 1) : 1
+    await tx.$queryRaw`UPDATE usage_counters SET used=GREATEST(used-${units},0), updated_at=now() WHERE user_id=${rows[0].user_id} AND tool=${rows[0].tool} AND usage_date=${rows[0].quota_date} RETURNING used`
     return true
   })
 }
@@ -121,4 +122,15 @@ export function listForUser({ userId, tool, status, limit = 50, cursor } = {}) {
 export async function deleteForUser(id, userId) {
   const result = await prisma.toolRun.deleteMany({ where: { id, userId } })
   return result.count > 0
+}
+
+export async function deleteTerminalForUser(userId, tools = null) {
+  const result = await prisma.toolRun.deleteMany({
+    where: {
+      userId,
+      status: { in: ['COMPLETED', 'FAILED', 'TIMED_OUT', 'CANCELLED'] },
+      ...(tools ? { tool: { in: tools } } : {}),
+    },
+  })
+  return result.count
 }

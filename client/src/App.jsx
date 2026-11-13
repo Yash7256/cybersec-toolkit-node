@@ -9,6 +9,8 @@ import Whois from './views/Whois';
 import Traceroute from './views/Traceroute';
 import SSL from './views/SSL';
 import GenericTool from './views/GenericTool';
+import GeoIPWorkbench from './views/GeoIPWorkbench';
+import SharedResult from './views/SharedResult';
 import AIExecutiveReport from './views/AIExecutiveReport';
 import Dashboard from './views/Dashboard';
 import { TierProvider } from './context/TierContext';
@@ -469,6 +471,7 @@ function AuthPage({ children }) {
 // ─── Route guards ─────────────────────────────────────────────────────────────
 function DynamicTool() {
   const { toolId } = useParams();
+  if (toolId === 'geo') return <GeoIPWorkbench />;
   if (toolId === 'dns') return <DNSLookup />;
   if (toolId === 'whois') return <Whois />;
   if (toolId === 'webscan') return <WebAppScanner />;
@@ -540,6 +543,8 @@ export default function App() {
               </AuthPage>
             }
           />
+
+          <Route path="/share/:token" element={<SharedResult />} />
 
           <Route element={<RequireAuth />}>
             <Route path="/" element={<Navigate to="/tools/portscanner" replace />} />

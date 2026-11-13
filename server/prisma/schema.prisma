@@ -34,6 +34,9 @@ enum ToolName {
   HTTP_HEADERS
   SUBDOMAIN
   GEOIP
+  ASN
+  GEOIP_BULK
+  GEOIP_CIDR
 }
 
 enum RunStatus {
@@ -97,6 +100,7 @@ model User {
   reports       Report[]
   auditLogs     AuditLog[]
   targetAuthorizations TargetAuthorization[]
+  shareLinks    ShareLink[]
 
   @@map("users")
 }
@@ -159,6 +163,7 @@ model ToolRun {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   result RunResult?
   findings PortFinding[]
+  shareLinks ShareLink[]
   reports Report[]
 
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])          // Q3
@@ -293,4 +298,22 @@ model AuditLog {
   @@index([actorId, createdAt(sort: Desc)])                          // Q13
   @@index([createdAt], type: Brin)                                   // range scans, ~1000x smaller than B-tree
   @@map("audit_logs")
+}
+
+model ShareLink {
+  id                 String    @id @default(uuid(7)) @db.Uuid
+  token              String    @unique @db.VarChar(64)
+  runId              String    @map("run_id") @db.Uuid
+  createdBy          String    @map("created_by") @db.Uuid
+  expiresAt          DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt          DateTime? @map("revoked_at") @db.Timestamptz(3)
+  redactAbuseContact Boolean   @default(true) @map("redact_abuse_contact")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  run   ToolRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  owner User    @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([createdBy, createdAt])
+  @@index([expiresAt])
+  @@map("share_links")
 }

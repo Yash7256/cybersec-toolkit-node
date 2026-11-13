@@ -1,5 +1,7 @@
 import pino from 'pino'
 
+const loggerCache = new Map()
+
 const REDACTION_PATHS = [
   'req.headers.authorization',
   'req.headers.cookie',
@@ -11,6 +13,10 @@ const REDACTION_PATHS = [
 ]
 
 export function createLogger(env) {
+  const cacheKey = `${env.NODE_ENV}:${env.LOG_LEVEL}`
+  const cached = loggerCache.get(cacheKey)
+  if (cached) return cached
+
   const options = {
     level: env.LOG_LEVEL,
     redact: { paths: REDACTION_PATHS, censor: '[redacted]' },
@@ -23,5 +29,7 @@ export function createLogger(env) {
     }
   }
 
-  return pino(options)
+  const logger = pino(options)
+  loggerCache.set(cacheKey, logger)
+  return logger
 }

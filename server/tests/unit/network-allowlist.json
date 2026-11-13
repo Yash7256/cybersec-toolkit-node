@@ -6,5 +6,7 @@
   "tools/geoip/enrich.js": "dns.promises.Resolver with explicit public servers for reverse DNS enrichment",
   "tools/traceroute/enrich.js": "dns.promises reverse lookup with bounded timeout for traceroute hop enrichment",
   "scanner/connect.js": "scanner connects to validated pinned IP literals only",
-  "scanner/intel/threatIntel.js": "net.connect to validated public DNS resolvers for the optional Spamhaus check"
+  "scanner/intel/threatIntel.js": "net.connect to validated public DNS resolvers for the optional Spamhaus check",
+  "tools/geoip/sources/cymru.js": "dns.promises.Resolver with explicit public servers for Team Cymru ASN DNS lookups",
+  "tools/geoip/sources/reputation.js": "dns.promises.Resolver with explicit public servers for DNSBL reputation queries"
 }

@@ -4,13 +4,27 @@ import { utcDate } from '../../config/limits.js'
 // Atomic quota consumption (DATABASE-DESIGN.md §3): one statement, row-locked by
 // Postgres on conflict. 1 row returned => allowed (new count); 0 rows => limit
 // reached and nothing was written.
-export async function consume({ userId, tool, limit }) {
+export async function consume({ userId, tool, limit, amount = 1 }) {
+  if (amount > limit) {
+    const current = await prisma.$queryRaw`
+      SELECT used, to_char(usage_date, 'YYYY-MM-DD') AS usage_date
+      FROM usage_counters
+      WHERE user_id = ${userId}::uuid
+        AND tool = ${tool}::"ToolName"
+        AND usage_date = (now() AT TIME ZONE 'UTC')::date
+    `
+    return {
+      allowed: false,
+      used: current.length === 0 ? 0 : Number(current[0].used),
+      usageDate: current.length === 0 ? utcDate() : current[0].usage_date,
+    }
+  }
   const rows = await prisma.$queryRaw`
     INSERT INTO usage_counters (user_id, tool, usage_date, used)
-    VALUES (${userId}::uuid, ${tool}::"ToolName", (now() AT TIME ZONE 'UTC')::date, 1)
+    VALUES (${userId}::uuid, ${tool}::"ToolName", (now() AT TIME ZONE 'UTC')::date, ${amount})
     ON CONFLICT (user_id, tool, usage_date)
-    DO UPDATE SET used = usage_counters.used + 1, updated_at = now()
-    WHERE usage_counters.used < ${limit}
+    DO UPDATE SET used = usage_counters.used + ${amount}, updated_at = now()
+    WHERE usage_counters.used + ${amount} <= ${limit}
     RETURNING used, to_char(usage_date, 'YYYY-MM-DD') AS usage_date
   `
 
@@ -40,11 +54,11 @@ export async function consume({ userId, tool, limit }) {
   }
 }
 
-// Refund exactly one unit on the day it was consumed. Never below zero.
-export async function refund({ userId, tool, usageDate }) {
+// Refund units on the day they were consumed. Never below zero.
+export async function refund({ userId, tool, usageDate, amount = 1 }) {
   const rows = await prisma.$queryRaw`
     UPDATE usage_counters
-    SET used = GREATEST(used - 1, 0), updated_at = now()
+    SET used = GREATEST(used - ${amount}, 0), updated_at = now()
     WHERE user_id = ${userId}::uuid
       AND tool = ${tool}::"ToolName"
       AND usage_date = ${usageDate}::date

@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "client/src/App.jsx"
+        ],
+        "createdAt": "2026-11-12T15:40:41.624Z",
+        "reason": "user requested exact visual parity with the reference UI, which intentionally uses Inter"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "client/src/index.css"
+        ],
+        "createdAt": "2026-11-12T15:40:41.637Z",
+        "reason": "user requested exact visual parity with the reference UI, which intentionally uses Inter"
+      }
+    ]
+  }
+}

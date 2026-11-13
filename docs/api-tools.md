@@ -94,12 +94,49 @@ continent, continent_code, region, city, postal, latitude, longitude, timezone,
 utc_offset, flag_emoji, calling_code, asn, org, isp, asn_domain, provider,
 is_cdn, cdn_provider, is_proxy, is_hosting, is_vpn, is_tor, confidence,
 location_accuracy, map_url, reverse_dns, abuse_contact, fallback_note,
-scan_duration_seconds, ip_results, cached, error`.
+scan_duration_seconds, ip_results, ip_type, ip_type_basis, privacy,
+privacy_sources, asn_detail, network, reputation, consensus, accuracy_radius_km,
+accuracy_basis, freshness, warnings, anycast, reverse_ip, cached, error`.
 
 `ip_results[]` keys: `ip, family, country, country_code, flag_emoji, region,
 city, latitude, longitude, asn, org, isp, cdn_provider, is_cdn, reverse_dns,
 provider, error`. A failed address has its own `error` while the rest of the
 lookup still succeeds.
+
+Enrichment sources are best-effort. Unavailable data is `null`, never a
+fabricated `false`; each failed source adds `{ source, message }` to `warnings`.
+`ip_type_basis` names the evidence behind `ip_type` (`tor-exit-list`,
+`asn-list`, `provider-privacy`, or `abuseipdb-usage-type`). `GEOIP_REVERSE_IP`
+enables PTR enrichment only when a licensed provider is configured.
+
+### `GET /api/tools/geoip/me`
+
+Looks up the caller's public IP from `req.ip` only; `X-Forwarded-For` is never
+parsed manually. Private or reserved callers receive `422 TARGET_BLOCKED`.
+
+### `POST /api/tools/asn` / `GET /api/tools/asn?asn=AS15169`
+
+Request: `{ "asn": "AS15169" }`. Merges Team Cymru ASN metadata with RIPEstat
+announced prefixes. Dedupe 86400 s. Data keys: `target, asn, name, country, rir,
+allocated, prefixes, prefix_count, truncated, warnings, error, cached`.
+
+### `POST /api/tools/geoip_cidr` / `GET /api/tools/geoip/cidr?target=8.8.8.0/24`
+
+Request: `{ "target": "8.8.8.0/24" }`. IPv4 is limited to `/24`–`/32`; IPv6 to
+`/120`–`/128`; at most 256 addresses. Private/reserved addresses are skipped and
+listed in `skipped`. Blocks over 16 addresses are queued. Data keys: `target,
+mode, total, completed, failed, skipped, summary, ip_results, results, warnings,
+error`. `summary` contains `countries`, `asns`, `ip_types`, `cdn`, `hosting`, and
+`tor` counts.
+
+### `POST /api/tools/geoip_bulk`
+
+Request: `{ "targets": string[] }`, 1–100 unique entries. Invalid entries are
+returned in `rejected`; the remainder are processed. The per-plan cap is
+`GEOIP_BULK_MAX_FREE` (default 10) or `GEOIP_BULK_MAX_PAID` (default 100).
+Queued and charged one quota unit per valid target. Data keys: `target, mode,
+total, completed, failed, rejected, summary, ip_results, results, warnings,
+error`.
 
 ### `POST /api/tools/ping`
 
@@ -120,6 +157,20 @@ error`.
 - `POST /api/runs/:id/cancel` — `QUEUED` → `200 CANCELLED` (refunded);
   `RUNNING` → `202` with `cancelRequested: true`; terminal → `409`.
 - `DELETE /api/runs/:id` — `204`.
+- `GET /api/tools/geoip/history?tool=&limit=` — recent GeoIP, bulk, CIDR, and
+  ASN runs; `limit` is 1–50.
+- `DELETE /api/tools/geoip/history` — delete all terminal GeoIP workflow runs
+  for the caller; returns `{ "deleted": n }`. Active runs are left untouched.
+- `GET /api/runs/compare?ids=a,b` — 2–5 owned runs for side-by-side comparison.
+- `GET /api/runs/:id/report?format=md|json` — downloadable report for a
+  completed run.
+- `POST /api/runs/:id/share` — create a share link. Body:
+  `{ "ttlDays"?: 1..30, "redactAbuseContact"?: boolean }`. Returns `token` and
+  `path`; the raw token is shown once.
+- `GET /api/runs/:id/shares` — list active and expired links for the run.
+- `DELETE /api/runs/:id/share/:shareId` — revoke a link.
+- `GET /api/share/:token` — public, rate-limited, `no-store`, `noindex`. Returns
+  only run metadata and results; never user data.
 - `GET /api/tools` — catalogue with `name, label, description, touchesTarget,
   input, dailyLimit`.
 

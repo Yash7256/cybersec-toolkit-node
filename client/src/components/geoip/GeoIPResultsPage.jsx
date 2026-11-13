@@ -97,12 +97,15 @@ const normalizeGeoIPResult = (raw = {}) => {
   const security = {
     cdn: raw.is_cdn,
     cdnProvider: raw.cdn_provider,
-    proxy: raw.is_proxy,
-    hosting: raw.is_hosting,
-    vpn: raw.is_vpn,
-    tor: raw.is_tor,
+    proxy: raw.privacy?.proxy ?? raw.is_proxy,
+    hosting: raw.privacy?.hosting ?? raw.is_hosting,
+    vpn: raw.privacy?.vpn ?? raw.is_vpn,
+    tor: raw.privacy?.tor ?? raw.is_tor,
     confidence: raw.confidence,
     locationAccuracy: raw.location_accuracy,
+    ipTypeBasis: raw.ip_type_basis ?? null,
+    accuracyRadiusKm: raw.accuracy_radius_km ?? null,
+    accuracyBasis: raw.accuracy_basis ?? null,
   };
   const resolvedIps = Array.isArray(raw.ip_results) && raw.ip_results.length
     ? raw.ip_results.map((row) => normalizeIpRow(row, resolvedIp, providerName))
@@ -142,7 +145,7 @@ const normalizeGeoIPResult = (raw = {}) => {
     scanning: Boolean(raw.scanning),
     scanMessage: raw.scan_message,
     resolvedIp,
-    ipType: ipTypeFrom(resolvedIp, raw.ipType),
+    ipType: ipTypeFrom(resolvedIp, raw.ipType ?? raw.ip_type),
     scanDurationSeconds: raw.scan_duration_seconds,
     cacheSource: providerName,
     asn: raw.asn,
@@ -159,6 +162,10 @@ const normalizeGeoIPResult = (raw = {}) => {
     fallbackNote: raw.fallback_note,
     provider: { name: providerName, cached: Boolean(raw.cached) },
     mapUrl: raw.map_url,
+    warnings: Array.isArray(raw.warnings) ? raw.warnings : [],
+    freshness: raw.freshness ?? null,
+    consensus: raw.consensus ?? null,
+    anycast: raw.anycast ?? null,
     raw,
   };
 };
@@ -379,7 +386,11 @@ export function LocationSection({ result }) {
           <InfoRow label="VPN" value={boolText(security.vpn)} />
           <InfoRow label="Tor" value={boolText(security.tor)} />
           <InfoRow label="Confidence" value={security.confidence} />
+          <InfoRow label="IP Type Basis" value={security.ipTypeBasis} />
           <InfoRow label="Location Accuracy" value={security.locationAccuracy} />
+          <InfoRow label="Accuracy Radius" value={security.accuracyRadiusKm != null ? `${security.accuracyRadiusKm} km` : null} />
+          <InfoRow label="Accuracy Basis" value={security.accuracyBasis} />
+          <InfoRow label="Anycast" value={result.anycast?.likely === true ? `Likely (${result.anycast.basis})` : result.anycast?.likely === false ? 'No' : null} />
         </InfoCard>
         <InfoCard title="DNS Information">
           <InfoRow label="Target" value={dns.target} />
@@ -450,10 +461,29 @@ export function ProviderInfoSection({ result }) {
   return (
     <SectionCard>
       <SectionHeading>Provider Information</SectionHeading>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={Building2} label="Provider" value={fallback(result.provider.name).toUpperCase()} />
         <StatCard icon={Database} label="Cached" value={boolText(result.provider.cached)} />
+        <StatCard icon={Timer} label="Fetched" value={result.freshness?.fetched_at ? new Date(result.freshness.fetched_at).toLocaleString() : null} />
+        <StatCard icon={Network} label="Consensus" value={result.consensus?.agreement ? result.consensus.agreement.toUpperCase() : null} subtext={result.consensus?.max_distance_km != null ? `${result.consensus.max_distance_km} km spread` : null} />
       </div>
+      {result.consensus?.providers?.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {result.consensus.providers.map((provider) => (
+            <Pill key={`${provider.name}-${provider.latency_ms}`} tone="info">
+              {fallback(provider.name)} {provider.latency_ms != null ? `${provider.latency_ms} ms` : ''}
+            </Pill>
+          ))}
+        </div>
+      )}
+      {result.warnings.length > 0 && (
+        <div className="mt-3 rounded-xl border border-[#76552a]/45 bg-[#46351e]/40 p-3 text-[11px] text-[#ffd38a]">
+          <div className="mb-1 font-semibold uppercase tracking-wider">Source warnings</div>
+          {result.warnings.map((warning, index) => (
+            <div key={`${warning.source}-${index}`}>{warning.source}: {warning.message}</div>
+          ))}
+        </div>
+      )}
     </SectionCard>
   );
 }

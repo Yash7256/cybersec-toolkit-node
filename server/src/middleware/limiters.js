@@ -107,6 +107,14 @@ export function createLimiters({
     ...base,
   })
 
+  const shareIp = createLimiter({
+    name: 'share_ip',
+    points: 60,
+    durationSec: 60,
+    keyFn: (req) => req.ip,
+    ...base,
+  })
+
   const submitUser = createLimiter({
     name: 'submit_user',
     points: env.SUBMIT_RATE_LIMIT_USER,
@@ -130,6 +138,7 @@ export function createLimiters({
     webhooksIp,
     metrics,
     userGeneral,
+    shareIp,
     submitUser,
     submitIp,
     submitLimiters: [submitIp, submitUser],

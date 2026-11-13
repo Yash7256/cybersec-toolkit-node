@@ -52,6 +52,13 @@ function definition(providers, overrides = {}) {
     wait: async () => {},
     getCached: async () => null,
     setCached: async () => {},
+    sources: {
+      cymru: async () => null,
+      tor: async () => null,
+      hosting: () => null,
+      reputation: async () => null,
+      anycast: () => ({ likely: null, basis: null }),
+    },
     ...overrides,
   })
 }

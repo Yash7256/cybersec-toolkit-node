@@ -12,8 +12,8 @@ function secondsUntil(iso) {
   return Math.max(0, Math.ceil((Date.parse(iso) - Date.now()) / 1000))
 }
 
-// Must run AFTER requireAuth + attachUser. Consumes exactly one unit.
-export function enforceQuota(tool, env = defaultEnv) {
+// Must run AFTER requireAuth + attachUser. Consumes `amount` units (default 1).
+export function enforceQuota(tool, env = defaultEnv, amount = 1) {
   return asyncHandler(async (req, res, next) => {
     if (!req.user) {
       throw new AppError(500, 'INTERNAL_ERROR', 'enforceQuota requires an attached user')
@@ -26,7 +26,7 @@ export function enforceQuota(tool, env = defaultEnv) {
       return
     }
 
-    const result = await usageRepo.consume({ userId: req.user.id, tool, limit })
+    const result = await usageRepo.consume({ userId: req.user.id, tool, limit, amount })
     const resetsAt = nextResetAt()
 
     res.set('X-Quota-Limit', String(limit))
@@ -45,6 +45,7 @@ export function enforceQuota(tool, env = defaultEnv) {
     req.quota = {
       tool,
       limit,
+      amount,
       used: result.used,
       usageDate: result.usageDate,
       consumed: true,
@@ -63,6 +64,7 @@ export async function refundQuota(req) {
       userId: req.user.id,
       tool: quota.tool,
       usageDate: quota.usageDate,
+      amount: quota.amount ?? 1,
     })
   } catch (err) {
     logger.error({ err, tool: quota.tool }, 'Failed to refund quota')

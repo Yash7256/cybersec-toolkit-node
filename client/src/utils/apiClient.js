@@ -140,6 +140,27 @@ export async function apiPost(path, body, getToken = null, signOut = null) {
   return response
 }
 
+/**
+ * DELETE a backend API path.
+ *
+ * @param {string} path - API path, e.g. '/api/runs/123'
+ * @param {Function|null} getToken - Clerk's getToken function from useAuth().
+ * @param {Function|null} signOut - Clerk's signOut function (optional).
+ * @returns {Promise<Response>}
+ */
+export async function apiDelete(path, getToken = null, signOut = null) {
+  const makeRequest = async (token) => {
+    const headers = await buildHeaders(token ? () => Promise.resolve(token) : getToken)
+    return fetch(`${BASE_URL}${path}`, { method: 'DELETE', headers })
+  }
+  const response = await makeRequest(null)
+  checkRateLimit(response)
+  if (response.status === 401) {
+    return handleUnauthorized(makeRequest, getToken, signOut) ?? response
+  }
+  return response
+}
+
 export async function apiPostAndPoll(path, body, getToken = null, { signal, onProgress } = {}) {
   const response = await apiPost(path, body, getToken)
   const payload = await response.json().catch(() => ({}))

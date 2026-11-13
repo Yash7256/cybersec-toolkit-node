@@ -49,6 +49,14 @@ const envBoolean = z.preprocess(
     .transform((value) => value === 'true')
 )
 
+const envBooleanDefaultTrue = z.preprocess(
+  (value) => (typeof value === 'boolean' ? (value ? 'true' : 'false') : value),
+  z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true')
+)
+
 const optionalToken = z.preprocess(
   (value) => (value === '' ? undefined : value),
   z.string().min(24, { message: 'must be at least 24 characters' }).optional()
@@ -111,6 +119,15 @@ const EnvSchema = z.object({
   GEOIP_MAX_IPS: z.coerce.number().int().min(1).max(10).default(4),
   GEOIP_CONSENSUS: envBoolean,
   GEOIP_ALLOW_INSECURE_PROVIDER: envBoolean,
+  GEOIP_REPUTATION_ENABLED: envBooleanDefaultTrue,
+  GEOIP_DNSBL_ZONES: z
+    .string()
+    .default('zen.spamhaus.org,bl.spamcop.net')
+    .transform((value) => value.split(',').map((entry) => entry.trim().toLowerCase()).filter(Boolean)),
+  GEOIP_BULK_MAX_FREE: z.coerce.number().int().min(1).max(100).default(10),
+  GEOIP_BULK_MAX_PAID: z.coerce.number().int().min(1).max(100).default(100),
+  GEOIP_REVERSE_IP: envBoolean,
+  SHARE_DEFAULT_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
   PING_METHOD: z.enum(['auto', 'icmp', 'tcp']).default('auto'),
   PING_HISTORY_TTL_SEC: z.coerce.number().int().min(1).default(3600),
   SCAN_MAX_CONCURRENCY: z.coerce.number().int().min(1).default(200),

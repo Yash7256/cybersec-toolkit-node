@@ -4,6 +4,13 @@ import { provider as ipwhois } from './providers/ipwhois.js'
 import { provider as ipinfo } from './providers/ipinfo.js'
 import { provider as ipapi } from './providers/ipapi.js'
 import { detectCdn, enrich as defaultEnrich, locationAccuracy } from './enrich.js'
+import { cymruAsn } from './sources/cymru.js'
+import { torExitStatus } from './sources/tor.js'
+import { hostingStatus } from './sources/hosting.js'
+import { reputationCheck } from './sources/reputation.js'
+import { buildPrivacy } from './sources/privacy.js'
+import { detectAnycast } from './sources/anycast.js'
+import { getRedisClient } from '../../redis/client.js'
 import { cacheGet, cacheSet } from '../_shared/cache.js'
 import { createLimits } from '../_shared/limits.js'
 import { createBreaker } from '../../net/circuitBreaker.js'
@@ -47,6 +54,20 @@ export const RESULT_KEYS = [
   'fallback_note',
   'scan_duration_seconds',
   'ip_results',
+  'ip_type',
+  'ip_type_basis',
+  'privacy',
+  'privacy_sources',
+  'asn_detail',
+  'network',
+  'reputation',
+  'consensus',
+  'accuracy_radius_km',
+  'accuracy_basis',
+  'freshness',
+  'warnings',
+  'anycast',
+  'reverse_ip',
   'cached',
   'error',
 ]
@@ -115,6 +136,20 @@ function emptyResult(input) {
     fallback_note: null,
     scan_duration_seconds: null,
     ip_results: [],
+    ip_type: null,
+    ip_type_basis: null,
+    privacy: { vpn: null, proxy: null, tor: null, relay: null, hosting: null },
+    privacy_sources: [],
+    asn_detail: null,
+    network: null,
+    reputation: null,
+    consensus: { providers: [], agreement: null, max_distance_km: null },
+    accuracy_radius_km: null,
+    accuracy_basis: null,
+    freshness: { fetched_at: null, db_date: null },
+    warnings: [],
+    anycast: { likely: null, basis: null },
+    reverse_ip: null,
     cached: false,
     error: null,
   }
@@ -139,7 +174,15 @@ export function createGeoipDefinition({
   breaker = createBreaker({ name: 'geoip' }),
   env = defaultEnv,
   wait = sleep,
+  redis = null,
+  sources = {},
 } = {}) {
+  const sourceCymru = sources.cymru ?? cymruAsn
+  const sourceTor = sources.tor ?? torExitStatus
+  const sourceHosting = sources.hosting ?? hostingStatus
+  const sourceReputation = sources.reputation ?? reputationCheck
+  const sourceAnycast = sources.anycast ?? detectAnycast
+  const redisClient = () => redis ?? getRedisClient()
   const ordered = () => {
     const names = String(env.GEOIP_PROVIDER_ORDER ?? '')
       .split(',')
@@ -155,6 +198,37 @@ export function createGeoipDefinition({
     const value = Number(env.GEOIP_MAX_IPS ?? 4)
     if (!Number.isFinite(value)) return 4
     return Math.min(Math.max(Math.trunc(value), 1), 10)
+  }
+
+  function distanceKm(a, b) {
+    if (a.latitude == null || a.longitude == null || b.latitude == null || b.longitude == null) return null
+    const toRad = (value) => (value * Math.PI) / 180
+    const dLat = toRad(b.latitude - a.latitude)
+    const dLon = toRad(b.longitude - a.longitude)
+    const lat1 = toRad(a.latitude)
+    const lat2 = toRad(b.latitude)
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2
+    return Math.round(2 * 6371 * Math.asin(Math.sqrt(h)))
+  }
+
+  function buildConsensus(providers) {
+    const withLocation = providers.filter((provider) => provider.latitude != null && provider.longitude != null)
+    let maxDistance = null
+    for (let i = 0; i < withLocation.length; i += 1) {
+      for (let j = i + 1; j < withLocation.length; j += 1) {
+        const distance = distanceKm(withLocation[i], withLocation[j])
+        if (distance != null && (maxDistance == null || distance > maxDistance)) maxDistance = distance
+      }
+    }
+    const countries = providers.map((provider) => provider.country).filter(Boolean)
+    let agreement = null
+    if (providers.length >= 2 && countries.length >= 2) {
+      const same = countries.every((country) => sameCountry(country, countries[0]) === true)
+      if (!same) agreement = 'low'
+      else if (maxDistance != null && maxDistance < 50) agreement = 'high'
+      else agreement = 'medium'
+    }
+    return { providers, agreement, max_distance_km: maxDistance }
   }
 
   async function queryProvider(provider, ip, { limiter, breaker, env, ctx }) {
@@ -178,17 +252,24 @@ export function createGeoipDefinition({
     throw lastError ?? Object.assign(new Error('Lookup service unavailable'), { kind: 'upstream' })
   }
 
+  async function timedQuery(provider, ip, options) {
+    const startedAt = performance.now()
+    const data = await queryProvider(provider, ip, options)
+    return { data, latency_ms: Math.round(performance.now() - startedAt) }
+  }
+
   async function lookupAddress(entry, options) {
     const { candidates } = options
     let lastError = null
     for (let index = 0; index < candidates.length; index += 1) {
       const provider = candidates[index]
       try {
-        const data = await queryProvider(provider, entry.address, options)
+        const answer = await timedQuery(provider, entry.address, options)
         const enrichment = await enrich(entry.address)
         return {
           entry,
-          data,
+          data: answer.data,
+          latency_ms: answer.latency_ms,
           enrichment,
           provider,
           fallbackNote:
@@ -278,21 +359,100 @@ export function createGeoipDefinition({
       const ip = outcome.entry.address
       const cdn = detectCdn(data.org)
 
-      let confidence = null
+      const warnings = []
+      const consensusProviders = [{
+        provider: outcome.provider.name,
+        country: data.country ?? null,
+        city: data.city ?? null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
+        latency_ms: outcome.latency_ms ?? null,
+      }]
+
       if (env.GEOIP_CONSENSUS === true) {
         const secondary = candidates.find((provider) => provider.name !== outcome.provider.name)
         if (secondary) {
           try {
-            const other = await queryProvider(secondary, ip, options)
-            confidence = sameCountry(data.country, other.country)
-              ? 'high'
-              : sameCountry(data.country, other.country) === false
-                ? 'low'
-                : null
+            const answer = await timedQuery(secondary, ip, options)
+            consensusProviders.push({
+              provider: secondary.name,
+              country: answer.data.country ?? null,
+              city: answer.data.city ?? null,
+              latitude: answer.data.latitude ?? null,
+              longitude: answer.data.longitude ?? null,
+              latency_ms: answer.latency_ms ?? null,
+            })
           } catch {
-            confidence = null
+            warnings.push({ source: secondary.name, message: 'Consensus provider unavailable' })
           }
         }
+      }
+
+      const consensus = buildConsensus(consensusProviders)
+      const confidence = consensus.agreement
+
+      let asnDetail = null
+      try {
+        asnDetail = await sourceCymru(ip)
+      } catch {
+        warnings.push({ source: 'team-cymru', message: 'ASN lookup unavailable' })
+      }
+
+      let torStatus = null
+      try {
+        torStatus = await sourceTor(ip, { redis: redisClient() })
+      } catch {
+        torStatus = null
+      }
+      if (torStatus === null) {
+        warnings.push({ source: 'tor-exit-list', message: 'Tor exit list unavailable' })
+      }
+
+      const asnForSources = asnDetail?.asn ?? data.asn ?? null
+      const hosting = sourceHosting(asnForSources)
+
+      let reputation = null
+      try {
+        reputation = await sourceReputation(ip, {
+          env,
+          limiter,
+          redis: redisClient(),
+        })
+      } catch {
+        warnings.push({ source: 'reputation', message: 'Reputation lookup unavailable' })
+      }
+      if (outcome.enrichment?.rdap_error) {
+        warnings.push({ source: 'rdap', message: 'RDAP lookup unavailable' })
+      }
+      if (reputation) {
+        if (!reputation.abuseipdb && !reputation.dnsbl?.checked) {
+          warnings.push({ source: 'reputation', message: 'Reputation sources not configured or unavailable' })
+        }
+        reputation = { ...reputation, tor_exit: torStatus }
+      } else if (torStatus !== null) {
+        reputation = { abuseipdb: null, dnsbl: null, tor_exit: torStatus, checked_at: null }
+      }
+
+      const privacy = buildPrivacy({
+        providerPrivacy: data.privacy ?? null,
+        torStatus,
+        hosting,
+        usageType: reputation?.abuseipdb?.usage_type ?? null,
+      })
+      const providerAccuracy = data.accuracy_radius_km ?? data.accuracy_radius ?? null
+      const accuracyRadius = providerAccuracy != null
+        ? Number(providerAccuracy)
+        : consensus.max_distance_km != null && consensusProviders.length > 1
+          ? Math.round(consensus.max_distance_km)
+          : null
+      const accuracyBasis = providerAccuracy != null
+        ? 'provider'
+        : accuracyRadius != null
+          ? 'provider-disagreement'
+          : null
+
+      if (env.GEOIP_REVERSE_IP) {
+        warnings.push({ source: 'reverse-ip', message: 'Reverse IP provider not configured' })
       }
 
       const result = {
@@ -310,10 +470,10 @@ export function createGeoipDefinition({
         calling_code: data.calling_code ?? null,
         isp: data.isp ?? null,
         asn_domain: data.asn_domain ?? null,
-        is_proxy: data.is_proxy ?? null,
-        is_hosting: data.is_hosting ?? null,
-        is_vpn: data.is_vpn ?? null,
-        is_tor: data.is_tor ?? null,
+        is_proxy: privacy.privacy.proxy ?? data.is_proxy ?? null,
+        is_hosting: privacy.privacy.hosting ?? data.is_hosting ?? null,
+        is_vpn: privacy.privacy.vpn ?? data.is_vpn ?? null,
+        is_tor: privacy.privacy.tor ?? data.is_tor ?? null,
         confidence,
         location_accuracy: locationAccuracy(data),
         is_cdn: cdn.is_cdn,
@@ -324,6 +484,23 @@ export function createGeoipDefinition({
             : null,
         reverse_dns: outcome.enrichment?.reverse_dns ?? [],
         abuse_contact: outcome.enrichment?.abuse_contact ?? null,
+        network: outcome.enrichment?.network ?? null,
+        asn_detail: asnDetail,
+        privacy: privacy.privacy,
+        privacy_sources: privacy.privacy_sources,
+        ip_type: privacy.ip_type,
+        ip_type_basis: privacy.ip_type_basis,
+        reputation,
+        consensus,
+        accuracy_radius_km: accuracyRadius,
+        accuracy_basis: accuracyBasis,
+        freshness: {
+          fetched_at: new Date().toISOString(),
+          db_date: data.db_date ?? null,
+        },
+        warnings,
+        anycast: sourceAnycast({ ip, asn: asnForSources }),
+        reverse_ip: null,
         fallback_note: outcome.fallbackNote,
         scan_duration_seconds: elapsedSeconds(startedAt),
         ip_results: ipResults,
