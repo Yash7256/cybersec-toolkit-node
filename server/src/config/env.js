@@ -108,6 +108,8 @@ const EnvSchema = z.object({
   GEOIP_CACHE_TTL_SEC: z.coerce.number().int().min(1).default(3600),
   GEOIP_RATE_PER_MIN: z.coerce.number().int().min(1).default(55),
   GEOIP_MAX_CONCURRENT: z.coerce.number().int().min(1).default(5),
+  GEOIP_MAX_IPS: z.coerce.number().int().min(1).max(10).default(4),
+  GEOIP_CONSENSUS: envBoolean,
   GEOIP_ALLOW_INSECURE_PROVIDER: envBoolean,
   PING_METHOD: z.enum(['auto', 'icmp', 'tcp']).default('auto'),
   PING_HISTORY_TTL_SEC: z.coerce.number().int().min(1).default(3600),

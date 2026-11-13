@@ -148,7 +148,7 @@ async function geoipLookup(ip, { env, signal } = {}) {
     lon: result.longitude ?? null,
     provider: result.org || result.provider || null,
     asn: result.asn ?? null,
-    cdn_provider: result.is_cdn ? result.provider : null,
+    cdn_provider: result.cdn_provider ?? (result.is_cdn ? result.provider : null),
     is_cdn: Boolean(result.is_cdn),
   }
 }

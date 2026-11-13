@@ -1,16 +1,19 @@
 import dns from 'node:dns'
 import { queryIp } from '../../net/rdapClient.js'
 
-const CDN_PATTERNS = [
-  /cloudflare/i,
-  /akamai/i,
-  /fastly/i,
-  /cloudfront/i,
-  /google llc/i,
-  /microsoft corporation/i,
-  /azure/i,
-  /imperva/i,
-  /incapsula/i,
+const CDN_PROVIDERS = [
+  { name: 'Cloudflare', pattern: /\bcloudflare\b/i },
+  { name: 'Akamai', pattern: /\bakamai\b/i },
+  { name: 'Fastly', pattern: /\bfastly\b/i },
+  { name: 'Amazon CloudFront', pattern: /\bcloudfront\b/i },
+  { name: 'Imperva', pattern: /\bimperva\b|\bincapsula\b/i },
+  { name: 'Sucuri', pattern: /\bsucuri\b/i },
+  { name: 'StackPath', pattern: /\bstackpath\b/i },
+  { name: 'Bunny', pattern: /\bbunny(?:\.net|cdn)?\b/i },
+  { name: 'Edgio', pattern: /\bedgio\b/i },
+  { name: 'Vercel', pattern: /\bvercel\b/i },
+  { name: 'Netlify', pattern: /\bnetlify\b/i },
+  { name: 'Google Cloud CDN', pattern: /\bgoogle cloud cdn\b/i },
 ]
 
 function publicResolver() {
@@ -30,7 +33,17 @@ export async function reverseDns(ip, { resolver = publicResolver() } = {}) {
 
 export function detectCdn(org) {
   const text = String(org ?? '')
-  return CDN_PATTERNS.some((pattern) => pattern.test(text))
+  for (const { name, pattern } of CDN_PROVIDERS) {
+    if (pattern.test(text)) return { is_cdn: true, cdn_provider: name }
+  }
+  return { is_cdn: false, cdn_provider: null }
+}
+
+export function locationAccuracy(data) {
+  if (data?.city) return 'city'
+  if (data?.region) return 'region'
+  if (data?.country) return 'country'
+  return null
 }
 
 export async function rdapAbuse(ip, { query = queryIp } = {}) {
