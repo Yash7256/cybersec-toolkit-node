@@ -29,60 +29,112 @@ const ipTypeFrom = (ip, explicit) => explicit || (String(ip || '').includes(':')
 
 const confidencePercent = (value) => {
   if (typeof value === 'number') return Math.max(0, Math.min(100, value));
-  const normalized = String(value || '').trim().toLowerCase();
-  if (normalized.endsWith('%')) return Math.max(0, Math.min(100, Number(normalized.slice(0, -1)) || 0));
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (normalized.endsWith('%')) {
+    const parsed = Number(normalized.slice(0, -1));
+    return Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : null;
+  }
   if (normalized === 'high') return 88;
   if (normalized === 'medium') return 62;
   if (normalized === 'low') return 34;
-  return 50;
+  return null;
+};
+
+const familyLabel = (family) => (family === 4 ? 'IPv4' : family === 6 ? 'IPv6' : null);
+
+const normalizeIpRow = (row = {}, fallbackIp, fallbackProvider) => {
+  const ip = row.ip ?? fallbackIp;
+  const reverseDns = row.reverse_dns ?? row.reverseDns;
+  return {
+    ip,
+    type: ipTypeFrom(ip, familyLabel(row.family) ?? row.type),
+    provider: row.provider ?? row.cdn_provider ?? fallbackProvider,
+    edgeCdn: row.is_cdn === true,
+    cdnProvider: row.cdn_provider ?? null,
+    country: row.country ?? null,
+    countryCode: row.country_code ?? null,
+    flagEmoji: row.flag_emoji ?? null,
+    asn: row.asn ?? null,
+    org: row.org ?? null,
+    isp: row.isp ?? null,
+    city: row.city ?? null,
+    region: row.region ?? null,
+    latitude: row.latitude ?? null,
+    longitude: row.longitude ?? null,
+    reverseDns,
+    error: row.error ?? null,
+    summary:
+      row.error
+        ? `Error: ${row.error}`
+        : [row.city, row.region, row.country].filter(Boolean).join(', '),
+  };
 };
 
 const normalizeGeoIPResult = (raw = {}) => {
-  const lat = raw.location?.latitude ?? raw.lat ?? raw.latitude;
-  const lon = raw.location?.longitude ?? raw.lon ?? raw.longitude;
-  const resolvedIp = raw.resolvedIp ?? raw.ip;
-  const resolvedIps = raw.resolvedIps ?? raw.resolved_ips ?? (resolvedIp ? [resolvedIp] : []);
-  const providerName = raw.provider?.name ?? raw.provider ?? 'ipwhois';
-  const cached = raw.provider?.cached ?? raw.cached ?? false;
+  const resolvedIp = raw.ip;
+  const providerName = typeof raw.provider === 'string' ? raw.provider : null;
   const location = {
-    country: raw.location?.country ?? raw.country,
-    countryCode: raw.location?.countryCode ?? raw.country_code,
-    continent: raw.location?.continent ?? raw.continent,
-    continentCode: raw.location?.continentCode ?? raw.continent_code,
-    region: raw.location?.region ?? raw.region,
-    city: raw.location?.city ?? raw.city,
-    postalCode: raw.location?.postalCode ?? raw.postal,
-    latitude: lat,
-    longitude: lon,
-    timezone: raw.location?.timezone ?? raw.timezone,
-    utcOffset: raw.location?.utcOffset ?? raw.timezone_utc,
+    country: raw.country,
+    countryCode: raw.country_code,
+    continent: raw.continent,
+    continentCode: raw.continent_code,
+    region: raw.region,
+    city: raw.city,
+    postalCode: raw.postal,
+    latitude: raw.latitude,
+    longitude: raw.longitude,
+    timezone: raw.timezone,
+    utcOffset: raw.utc_offset,
     flagEmoji: raw.flag_emoji,
   };
   const network = {
-    isp: raw.network?.isp ?? raw.isp,
-    organization: raw.network?.organization ?? raw.organization ?? raw.org,
-    asn: raw.network?.asn ?? raw.asn,
-    asnDomain: raw.network?.asnDomain ?? raw.asn_domain,
-    callingCode: raw.network?.callingCode ?? raw.calling_code,
+    isp: raw.isp,
+    organization: raw.org,
+    asn: raw.asn,
+    asnDomain: raw.asn_domain,
+    callingCode: raw.calling_code,
   };
   const security = {
-    cdn: raw.security?.cdn ?? raw.is_cdn,
-    cdnProvider: raw.security?.cdnProvider ?? raw.cdn_provider,
-    proxy: raw.security?.proxy ?? raw.is_proxy,
-    hosting: raw.security?.hosting ?? raw.is_hosting,
-    confidence: raw.security?.confidence ?? raw.confidence,
-    locationAccuracy: raw.security?.locationAccuracy ?? raw.location_accuracy,
+    cdn: raw.is_cdn,
+    cdnProvider: raw.cdn_provider,
+    proxy: raw.is_proxy,
+    hosting: raw.is_hosting,
+    vpn: raw.is_vpn,
+    tor: raw.is_tor,
+    confidence: raw.confidence,
+    locationAccuracy: raw.location_accuracy,
   };
+  const resolvedIps = Array.isArray(raw.ip_results) && raw.ip_results.length
+    ? raw.ip_results.map((row) => normalizeIpRow(row, resolvedIp, providerName))
+    : [
+        normalizeIpRow(
+          {
+            ip: resolvedIp,
+            country: raw.country,
+            country_code: raw.country_code,
+            flag_emoji: raw.flag_emoji,
+            asn: raw.asn,
+            org: raw.org,
+            isp: raw.isp,
+            city: raw.city,
+            region: raw.region,
+            latitude: raw.latitude,
+            longitude: raw.longitude,
+            is_cdn: raw.is_cdn,
+            cdn_provider: raw.cdn_provider,
+            reverse_dns: raw.reverse_dns,
+            provider: providerName,
+            error: raw.error,
+          },
+          resolvedIp,
+          providerName,
+        ),
+      ];
   const dns = {
-    target: raw.dns?.target ?? raw.target,
-    resolvedIps,
-    reverseDns: raw.dns?.reverseDns ?? raw.reverse_dns,
+    target: raw.target,
+    resolvedIps: raw.resolved_ips ?? raw.addresses ?? (resolvedIp ? [resolvedIp] : []),
+    reverseDns: raw.reverse_dns,
   };
-  const rows = Array.isArray(raw.resolvedIps)
-    ? raw.resolvedIps
-    : Array.isArray(raw.ip_results) && raw.ip_results.length
-      ? raw.ip_results
-      : [raw];
 
   return {
     target: raw.target,
@@ -91,33 +143,21 @@ const normalizeGeoIPResult = (raw = {}) => {
     scanMessage: raw.scan_message,
     resolvedIp,
     ipType: ipTypeFrom(resolvedIp, raw.ipType),
-    scanDurationSeconds: raw.scanDurationSeconds ?? raw.scan_duration_seconds,
-    cacheSource: raw.cacheSource ?? providerName,
+    scanDurationSeconds: raw.scan_duration_seconds,
+    cacheSource: providerName,
     asn: raw.asn,
     isp: raw.isp,
-    organization: raw.organization ?? raw.org,
-    proxyOrCdn: Boolean(raw.proxyOrCdn ?? raw.is_cdn ?? raw.is_proxy),
-    confidenceScore: raw.confidenceScore ?? raw.confidence,
-    aiSummary: raw.aiSummary ?? raw.infrastructure_note ?? raw.summary,
+    organization: raw.org,
+    proxyOrCdn: raw.is_cdn === true || raw.is_proxy === true,
+    confidenceScore: raw.confidence,
     location,
     network,
     security,
     dns,
-    resolvedIps: rows.map((row) => ({
-      ip: row.ip || row.target || resolvedIp,
-      type: ipTypeFrom(row.ip || row.target || resolvedIp, row.type || row.asn_type),
-      provider: row.provider || row.cdn_provider || raw.cdn_provider || providerName,
-      edgeCdn: Boolean(row.edgeCdn ?? row.is_cdn ?? raw.is_cdn),
-      country: row.country || location.country,
-      countryCode: row.countryCode || row.country_code || location.countryCode,
-      flagEmoji: row.flag_emoji || location.flagEmoji,
-      asn: row.asn || raw.asn,
-      org: row.org || row.organization || raw.org || raw.organization,
-      city: row.city || location.city,
-      reverseDns: row.reverseDns || row.reverse_dns || raw.reverse_dns,
-      summary: row.summary || raw.summary || raw.infrastructure_note,
-    })),
-    provider: { name: providerName, cached },
+    resolvedIps,
+    abuseContact: raw.abuse_contact,
+    fallbackNote: raw.fallback_note,
+    provider: { name: providerName, cached: Boolean(raw.cached) },
     mapUrl: raw.map_url,
     raw,
   };
@@ -139,6 +179,19 @@ const InfoRow = ({ label, value }) => {
     <div className="grid grid-cols-[108px_minmax(0,1fr)] gap-2 border-b border-white/[0.08] py-2 last:border-b-0">
       <span className="text-[10px] font-medium text-[#aaaaaa]">{label}</span>
       <span className="whitespace-pre-line text-[11px] font-semibold leading-5 text-white break-words">{fallback(value)}</span>
+    </div>
+  );
+};
+
+const AbuseContactRow = ({ contact }) => {
+  if (!contact?.email && !contact?.phone) return null;
+  return (
+    <div className="grid grid-cols-[108px_minmax(0,1fr)] gap-2 border-b border-white/[0.08] py-2 last:border-b-0">
+      <span className="text-[10px] font-medium text-[#aaaaaa]">Abuse Contact</span>
+      <span className="flex flex-col gap-0.5 text-[11px] font-semibold leading-5">
+        {contact.email && <a href={`mailto:${contact.email}`} className="break-all text-[#ba9cff] hover:underline">{contact.email}</a>}
+        {contact.phone && <a href={`tel:${String(contact.phone).replace(/[^+\d]/g, '')}`} className="break-all text-[#ba9cff] hover:underline">{contact.phone}</a>}
+      </span>
     </div>
   );
 };
@@ -194,7 +247,9 @@ export function ScanInputBar({ target, placeholder, loading, onTargetChange, onC
 export function ScanSummaryHero({ result }) {
   const confidence = confidencePercent(result.confidenceScore);
   const statusLabel = result.scanning ? 'Lookup Running' : result.status === 'failed' ? 'Lookup Failed' : 'Lookup Completed';
-  const duration = Number.isFinite(Number(result.scanDurationSeconds)) ? `${Number(result.scanDurationSeconds).toFixed(1)}s` : 'Live';
+  const durationValue = Number(result.scanDurationSeconds);
+  const hasDuration = result.scanDurationSeconds !== null && result.scanDurationSeconds !== undefined && Number.isFinite(durationValue);
+  const duration = result.scanning ? 'Live' : hasDuration ? `${durationValue.toFixed(1)}s` : '—';
   return (
     <SectionCard>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -208,14 +263,15 @@ export function ScanSummaryHero({ result }) {
             <Pill><MapPin className="h-3 w-3" />{fallback(result.resolvedIp)}</Pill>
             <Pill><Timer className="h-3 w-3" />{duration}</Pill>
             <Pill><Database className="h-3 w-3" />{result.provider.cached ? `Cached (${fallback(result.cacheSource).toUpperCase()})` : `Fresh (${fallback(result.cacheSource).toUpperCase()})`}</Pill>
+            {result.fallbackNote && <Pill tone="warning"><Info className="h-3 w-3" />{result.fallbackNote}</Pill>}
           </div>
         </div>
       </div>
 
-      {(result.scanning || result.aiSummary || result.scanMessage) && (
+      {(result.scanning || result.scanMessage) && (
         <div className="mt-4 flex items-center gap-3 rounded-xl border border-[#ba9cff]/30 bg-[linear-gradient(180deg,rgba(186,156,255,.16),rgba(58,27,87,.10))] px-4 py-3 text-[#ded4e9]">
           {result.scanning ? <Activity className="h-4 w-4 shrink-0 animate-pulse text-[#ba9cff]" /> : <Info className="h-4 w-4 shrink-0 text-[#ba9cff]" />}
-          <p className="text-[12px] leading-5">{result.scanning ? result.scanMessage || 'GeoIP lookup is running...' : result.aiSummary}</p>
+          <p className="text-[12px] leading-5">{result.scanning ? result.scanMessage || 'GeoIP lookup is running...' : result.scanMessage}</p>
         </div>
       )}
 
@@ -225,10 +281,16 @@ export function ScanSummaryHero({ result }) {
         <StatCard icon={Radio} label="ISP" value={result.isp} />
         <StatCard icon={Building2} label="Organization" value={result.organization} />
         <StatCard icon={MapPin} label="IP Type" value={result.proxyOrCdn ? 'Proxy/CDN' : result.ipType} subtext={result.security.cdnProvider} />
-        <StatCard icon={ShieldCheck} label="Confidence Score" value={result.confidenceScore}>
-          <div className="mt-2 h-1 rounded-full bg-white/[0.18]">
-            <div className="h-full rounded-full bg-[#7CFF9A]" style={{ width: `${confidence}%` }} />
-          </div>
+        <StatCard
+          icon={ShieldCheck}
+          label="Confidence Score"
+          value={result.confidenceScore === null || result.confidenceScore === undefined || result.confidenceScore === '' ? 'Not available' : result.confidenceScore}
+        >
+          {confidence !== null && (
+            <div className="mt-2 h-1 rounded-full bg-white/[0.18]">
+              <div className="h-full rounded-full bg-[#7CFF9A]" style={{ width: `${confidence}%` }} />
+            </div>
+          )}
         </StatCard>
       </div>
     </SectionCard>
@@ -307,12 +369,15 @@ export function LocationSection({ result }) {
           <InfoRow label="ASN" value={network.asn} />
           <InfoRow label="ASN Domain" value={network.asnDomain} />
           <InfoRow label="Calling Code" value={network.callingCode} />
+          <AbuseContactRow contact={result.abuseContact} />
         </InfoCard>
         <InfoCard title="Security Information">
           <InfoRow label="CDN" value={boolText(security.cdn)} />
           <InfoRow label="CDN Provider" value={security.cdnProvider} />
           <InfoRow label="Proxy" value={boolText(security.proxy)} />
           <InfoRow label="Hosting" value={boolText(security.hosting)} />
+          <InfoRow label="VPN" value={boolText(security.vpn)} />
+          <InfoRow label="Tor" value={boolText(security.tor)} />
           <InfoRow label="Confidence" value={security.confidence} />
           <InfoRow label="Location Accuracy" value={security.locationAccuracy} />
         </InfoCard>
@@ -393,24 +458,106 @@ export function ProviderInfoSection({ result }) {
   );
 }
 
-const csvEscape = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+const sanitizeCsvCell = (value) => {
+  const text = String(value ?? '');
+  return /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+};
+
+const csvEscape = (value) => `"${sanitizeCsvCell(value).replaceAll('"', '""')}"`;
+
+const CSV_COLUMNS = [
+  'record_type',
+  'ip',
+  'family',
+  'country',
+  'country_code',
+  'flag_emoji',
+  'region',
+  'city',
+  'postal',
+  'latitude',
+  'longitude',
+  'timezone',
+  'utc_offset',
+  'asn',
+  'org',
+  'isp',
+  'asn_domain',
+  'calling_code',
+  'is_cdn',
+  'cdn_provider',
+  'is_proxy',
+  'is_hosting',
+  'is_vpn',
+  'is_tor',
+  'confidence',
+  'location_accuracy',
+  'scan_duration_seconds',
+  'provider',
+  'cached',
+  'reverse_dns',
+  'abuse_email',
+  'abuse_phone',
+  'error',
+];
 
 const toCsv = (result) => {
-  const rows = [
-    ['target', result.target],
-    ['resolved_ip', result.resolvedIp],
-    ['asn', result.asn],
-    ['isp', result.isp],
-    ['organization', result.organization],
-    ['country', result.location.country],
-    ['city', result.location.city],
-    ['provider', result.provider.name],
-    ['cached', result.provider.cached],
-  ];
-  const ipRows = result.resolvedIps.map((ip) => ['resolved_ip_row', ip.ip, ip.type, ip.provider, ip.country, ip.asn, ip.org, ip.city, ip.reverseDns]);
-  return [...rows, [''], ['row_type', 'ip', 'type', 'provider', 'country', 'asn', 'org', 'city', 'reverse_dns'], ...ipRows]
-    .map((row) => row.map(csvEscape).join(','))
-    .join('\n');
+  const summary = {
+    record_type: 'summary',
+    ip: result.resolvedIp,
+    country: result.location.country,
+    country_code: result.location.countryCode,
+    flag_emoji: result.location.flagEmoji,
+    region: result.location.region,
+    city: result.location.city,
+    postal: result.location.postalCode,
+    latitude: result.location.latitude,
+    longitude: result.location.longitude,
+    timezone: result.location.timezone,
+    utc_offset: result.location.utcOffset,
+    asn: result.network.asn,
+    org: result.network.organization,
+    isp: result.network.isp,
+    asn_domain: result.network.asnDomain,
+    calling_code: result.network.callingCode,
+    is_cdn: result.security.cdn,
+    cdn_provider: result.security.cdnProvider,
+    is_proxy: result.security.proxy,
+    is_hosting: result.security.hosting,
+    is_vpn: result.security.vpn,
+    is_tor: result.security.tor,
+    confidence: result.security.confidence,
+    location_accuracy: result.security.locationAccuracy,
+    scan_duration_seconds: result.scanDurationSeconds,
+    provider: result.provider.name,
+    cached: result.provider.cached,
+    reverse_dns: Array.isArray(result.dns.reverseDns) ? result.dns.reverseDns.join('; ') : result.dns.reverseDns,
+    abuse_email: result.abuseContact?.email,
+    abuse_phone: result.abuseContact?.phone,
+  };
+  const rows = result.resolvedIps.map((ip) => ({
+    record_type: 'ip',
+    ip: ip.ip,
+    family: ip.type,
+    country: ip.country,
+    country_code: ip.countryCode,
+    flag_emoji: ip.flagEmoji,
+    region: ip.region,
+    city: ip.city,
+    latitude: ip.latitude,
+    longitude: ip.longitude,
+    asn: ip.asn,
+    org: ip.org,
+    isp: ip.isp,
+    is_cdn: ip.edgeCdn,
+    cdn_provider: ip.cdnProvider,
+    provider: ip.provider,
+    reverse_dns: Array.isArray(ip.reverseDns) ? ip.reverseDns.join('; ') : ip.reverseDns,
+    error: ip.error,
+  }));
+  return [summary, ...rows]
+    .map((row) => CSV_COLUMNS.map((column) => csvEscape(row[column])).join(','))
+    .reduce((lines, row) => `${lines}\n${row}`, CSV_COLUMNS.map(csvEscape).join(','));
 };
 
 export function ExportShareSection({ result, copied, onCopy, onDownload }) {
