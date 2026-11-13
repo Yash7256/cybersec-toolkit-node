@@ -80,15 +80,26 @@ Data keys: `target, domain, available, registrar, creation_date, expiration_date
 updated_date, name_servers, status, dnssec, privacy_protected, days_until_expiry,
 expiry_status, summary, error, rdap_available, normalized, rdap, cached`.
 
-### `POST /api/tools/geoip`
+### `GET /api/tools/geoip`
 
-Request: `{ "target": string }` (hostname or public IP). Providers are tried in
+Query: `?target=<hostname-or-public-ip>`. Providers are tried in
 `GEOIP_PROVIDER_ORDER`; results are cached for 3600 s and enriched with reverse
-DNS, CDN detection, and RDAP abuse contacts when available.
+DNS, CDN detection, and RDAP abuse contacts when available. The first
+`GEOIP_MAX_IPS` resolved addresses (default 4, max 10, IPv4 first) are looked
+up, and `ip_results` holds one entry per lookup. Set `GEOIP_CONSENSUS=true` to
+query a second provider and report `confidence: "high" | "low"`.
 
-Data keys: `target, ip, addresses, country, region, city, latitude, longitude,
-asn, org, provider, is_cdn, map_url, reverse_dns, abuse_contact, fallback_note,
-cached, error`.
+Data keys: `target, ip, addresses, resolved_ips, country, country_code,
+continent, continent_code, region, city, postal, latitude, longitude, timezone,
+utc_offset, flag_emoji, calling_code, asn, org, isp, asn_domain, provider,
+is_cdn, cdn_provider, is_proxy, is_hosting, is_vpn, is_tor, confidence,
+location_accuracy, map_url, reverse_dns, abuse_contact, fallback_note,
+scan_duration_seconds, ip_results, cached, error`.
+
+`ip_results[]` keys: `ip, family, country, country_code, flag_emoji, region,
+city, latitude, longitude, asn, org, isp, cdn_provider, is_cdn, reverse_dns,
+provider, error`. A failed address has its own `error` while the rest of the
+lookup still succeeds.
 
 ### `POST /api/tools/ping`
 
