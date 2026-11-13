@@ -1,0 +1,10 @@
+{
+  "tools/ssl/probe.js": "tls.connect to a validated IP literal with servername pinned to the requested host",
+  "tools/ping/icmp.js": "execFile the system ping binary with an args array and a validated IP literal",
+  "tools/ping/tcp.js": "net.connect to a validated IP literal for the TCP ping fallback",
+  "tools/whois/port43.js": "net.connect to validated public registry IPs for legacy WHOIS fallback",
+  "tools/geoip/enrich.js": "dns.promises.Resolver with explicit public servers for reverse DNS enrichment",
+  "tools/traceroute/enrich.js": "dns.promises reverse lookup with bounded timeout for traceroute hop enrichment",
+  "scanner/connect.js": "scanner connects to validated pinned IP literals only",
+  "scanner/intel/threatIntel.js": "net.connect to validated public DNS resolvers for the optional Spamhaus check"
+}

@@ -11,6 +11,8 @@ import apiRouter from './routes/index.js'
 import webhookRouter from './routes/webhooks.js'
 import { createAuth } from './middleware/auth.js'
 import { createLimiters } from './middleware/limiters.js'
+import httpMetrics from './observability/httpMetrics.js'
+import metricsRouter from './routes/metrics.js'
 
 export function createApp({
   env = defaultEnv,
@@ -27,7 +29,10 @@ export function createApp({
     ...baseAuth,
     requireAuth(req, res, next) {
       baseAuth.requireAuth(req, res, (err) => {
-        if (err && err.statusCode === 401) limiters.authFail.penalize(req)
+        if (err && err.statusCode === 401) {
+          limiters.authFail.penalize(req).then(() => next(err))
+          return
+        }
         next(err)
       })
     },
@@ -42,6 +47,7 @@ export function createApp({
   app.set('trust proxy', env.TRUST_PROXY)
 
   app.use(requestId())
+  app.use(httpMetrics())
 
   app.use(
     pinoHttp({
@@ -78,6 +84,8 @@ export function createApp({
   )
 
   app.use(express.json({ limit: env.BODY_LIMIT }))
+
+  app.use('/metrics', limiters.metrics, metricsRouter({ env }))
 
   app.use('/api', limiters.globalIp)
 

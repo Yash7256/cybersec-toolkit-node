@@ -1,7 +1,7 @@
 # PHASE 4 — Security & Infrastructure (Target Policy, Redis, Rate Limiting, Metrics)
 
 > **For OpenCode.** Prerequisites: Phases 1–3 finished (all boxes ticked; unit, DB and API tests green).
-> Companions: `DATABASE-DESIGN.md` (no schema change in this phase), `docs/quota-contract.md` (updated in T4.23).
+> Companions: `DATABASE-DESIGN.md` (no schema change in this phase), `docs/tool-route-contract.md`.
 > Project: monorepo `CyberSec-Toolkit`, server in `server/` (Express, ESM, JavaScript). **Never touch `client/`. Never write Python.**
 > This phase protects **third parties and your own network** from your own scanner. Treat every task as security-critical: tests are the specification.
 
@@ -261,7 +261,7 @@ tests/
   - Tests `tests/unit/token-bucket.test.js` (fake timers): burst allowed then paced to the exact rate; never exceeds burst; `take(n > burst)` rejects with a clear error; concurrent `take` calls are served FIFO.
   - Commit: `feat(security): outbound limiter and token bucket`
 
-- [ ] **T4.18 `tests/api/rate-limit.test.js` (real Redis, db index 1)**
+- [x] **T4.18 `tests/api/rate-limit.test.js` (real Redis, db index 1)**
   - Limit enforced; `Retry-After` and `RateLimit-*` headers; two users don't share counters; **two limiter instances with the same name share one counter** (simulates two server processes).
   - `auth_fail`: 20 failed requests → next one blocked for the block duration **even with a valid token**; successful auth does not consume.
   - **Fail-open:** point the client at a dead Redis → request still succeeds, `rate_limit_store_errors_total` increments, and the in-memory insurance still caps abusive bursts.
@@ -271,17 +271,17 @@ tests/
 
 ### Block D — Metrics & event-loop health
 
-- [ ] **T4.19 HTTP metrics + `GET /metrics`**
+- [x] **T4.19 HTTP metrics + `GET /metrics`**
   - Middleware (mounted first, after `requestId`): start timer; on `res.finish` observe `http_request_duration_seconds` with `route = req.route?.path ? (req.baseUrl + req.route.path) : 'unmatched'`, `status_class` = `2xx|3xx|4xx|5xx`. **Never use `req.path`/URL.** Skip `/metrics`.
   - `routes/metrics.js` mounted at `/metrics` (**not** under `/api`): requires `Authorization: Bearer <METRICS_TOKEN>`, compare with `crypto.timingSafeEqual` on equal-length SHA-256 digests; `METRICS_TOKEN` unset → `404`; wrong/missing → `401`. Response `Content-Type` = registry content type, `Cache-Control: no-store`. Own small limiter (30/min per IP).
   - DB pool gauges via `collect()` callbacks: `cst_db_pool_total`, `cst_db_pool_idle`, `cst_db_pool_waiting` (read from the `pg.Pool` used in Phase 2; expose it from `db/client.js` if needed).
   - Commit: `feat(obs): http metrics and protected metrics endpoint`
 
-- [ ] **T4.20 Event-loop monitor (`observability/eventLoop.js`)**
+- [x] **T4.20 Event-loop monitor (`observability/eventLoop.js`)**
   - `perf_hooks.monitorEventLoopDelay({ resolution: 20 })`; every 5 s read `p99`, update gauge `cst_eventloop_lag_p99_seconds`, `histogram.reset()`; log `warn` when p99 > 200 ms (log at most once per minute). `unref()` the interval; `disable()` in a shutdown hook.
   - Commit: `feat(obs): event loop lag monitor`
 
-- [ ] **T4.21 `tests/api/metrics.test.js` + `tests/unit/metrics-labels.test.js`**
+- [x] **T4.21 `tests/api/metrics.test.js` + `tests/unit/metrics-labels.test.js`**
   - `/metrics`: 404 with no token configured; 401 wrong token; 401 missing; 200 right token containing `cst_http_request_duration_seconds` and `cst_nodejs_` default metrics; endpoint is **not** reachable via `/api/metrics`.
   - **Cardinality guard:** send 300 requests to random unknown URLs and 50 distinct user ids → the set of `route` label values grows by at most 1 (`unmatched`); no metric line contains a user id, an IP address or a target string.
   - Unknown counter label value → recorded as `other`.
@@ -289,23 +289,23 @@ tests/
 
 ### Block E — Readiness, contract, pipeline, review
 
-- [ ] **T4.22 Readiness and shutdown**
+- [x] **T4.22 Readiness and shutdown**
   - Add a Redis check to the Phase 2 readiness registry: Redis down → **HTTP 200** with `status:'degraded'`, `checks:{ db:'ok', redis:'fail' }`; DB down → 503 as before. Add `disconnectRedis` and the event-loop monitor `disable` to `shutdownHooks`; at boot call `waitForReady(5000)` and log `redis degraded` if it returns false (do not crash).
   - Test: stop Redis container → `/api/health` 200, `/api/ready` 200 `degraded`; start it → `ok` again without restart.
   - Commit: `feat(server): redis readiness (degraded mode) and shutdown hooks`
 
-- [ ] **T4.23 `docs/tool-route-contract.md` (replaces `quota-contract.md`; ≤ 70 lines)**
+- [x] **T4.23 `docs/tool-route-contract.md` (replaces `quota-contract.md`; ≤ 70 lines)**
   - The mandatory pipeline: **`requireAuth → attachUser → submit limiters → zod → assertNotCoolingDown → validateTarget(s) → targetLimiter → enforceQuota → execute`** (note: submit limiters run before zod to cap cheap abuse; validation never consumes quota).
   - Rules for tool authors: connect **only** via `pinnedLookup(addresses)`; never call `dns.lookup`/`fetch(url)` on user input; manual redirects with `validateRedirect` (max 5); never put resolved IPs, internal errors or stack traces in responses; use `refundQuota` only for failures before execution; metric/audit expectations; a 12-line example route.
   - `git rm docs/quota-contract.md` and fix any reference to it.
   - Commit: `docs: tool route contract`
 
-- [ ] **T4.24 `tests/api/pipeline-order.test.js` (throwaway test-only route)**
+- [x] **T4.24 `tests/api/pipeline-order.test.js` (throwaway test-only route)**
   - Register `POST /__t/scan` in the test file only, mounting the full chain from T4.23 with stubbed DNS.
   - Assertions (check `usage_counters.used` after each): zod failure → 400, **used = 0**; blocked target → 422, used = 0, audit row + metric present; target rate-limited → 429, used = 0; quota exhausted → 429 `QUOTA_EXCEEDED`; success → 200 and used = 1; handler receives only validated `addresses`; response body of every failure contains no IP/CIDR text; unauthenticated → 401 before any policy work (spy that `resolveTarget` was not called).
   - Commit: `test(security): end-to-end pipeline ordering`
 
-- [ ] **T4.25 Security review (checklist — report each finding, fix, re-test)**
+- [x] **T4.25 Security review (checklist — report each finding, fix, re-test)**
   - `grep -rn "dns\.\(lookup\|resolve\)\|net\.connect\|fetch(" server/src | grep -v security/` → every hit must be a **documented** use of pinned addresses or a call to a fixed trusted host; list them.
   - Confirm `ALLOW_PRIVATE_TARGETS` is read **only** from validated `env` (never `req`), and production boot fails when it is true (run `NODE_ENV=production ALLOW_PRIVATE_TARGETS=true node src/server.js` → exit 1, readable message).
   - Confirm no `z.coerce.boolean()` anywhere (`grep -rn "coerce.boolean" server/src`).
@@ -314,7 +314,7 @@ tests/
   - Mutation spot-checks (revert after each): remove the IPv4-mapped unwrap → T4.7 must fail; make `pinnedLookup` call DNS → T4.10 must fail; drop the "all addresses" rule → T4.10 must fail. Report that each mutation was caught.
   - Commit only if fixes were needed: `fix(security): review findings`
 
-- [ ] **T4.26 Final verification**
+- [x] **T4.26 Final verification**
   - `docker compose up -d db redis`; run unit, DB and API test suites (report counts); `npm run dev:server`.
   - Manual: `curl -s localhost:3001/api/health`; `curl -s localhost:3001/api/ready`; `curl -si localhost:3001/metrics` → 404 (token unset); with `METRICS_TOKEN` set in `.env` and a Bearer header → 200 text exposition.
   - Kill Redis → service keeps answering, `/api/ready` = `degraded`, limiter metric `cst_rate_limit_store_errors_total` > 0.
@@ -324,15 +324,15 @@ tests/
 
 ## 5. Definition of Done (Phase 4)
 
-- [ ] 26 tasks ticked, one commit each; no secrets committed or logged.
-- [ ] IP policy table (≥ 80 cases) and host policy table pass; every known SSRF bypass in §T4.7/T4.9 is blocked.
-- [ ] DNS is resolved **once**; tools can only connect through `pinnedLookup`; the rebinding test proves a second answer is never used.
-- [ ] Policy errors are generic and never reveal resolved IPs/CIDRs.
-- [ ] Production refuses to boot with `ALLOW_PRIVATE_TARGETS=true`.
-- [ ] Limiters are Redis-shared, per-user and per-IP, fail open with in-memory insurance; brute-force auth guard and per-target victim protection work.
-- [ ] Invalid / blocked / rate-limited requests never consume daily quota (pipeline test).
-- [ ] `/metrics` is token-protected, low-cardinality, and not exposed under `/api`.
-- [ ] Redis outage degrades gracefully (200 `degraded`), DB outage is 503.
-- [ ] Zero Python; `client/` untouched.
+- [x] 26 tasks ticked, one commit each; no secrets committed or logged.
+- [x] IP policy table (≥ 80 cases) and host policy table pass; every known SSRF bypass in §T4.7/T4.9 is blocked.
+- [x] DNS is resolved **once**; tools can only connect through `pinnedLookup`; the rebinding test proves a second answer is never used.
+- [x] Policy errors are generic and never reveal resolved IPs/CIDRs.
+- [x] Production refuses to boot with `ALLOW_PRIVATE_TARGETS=true`.
+- [x] Limiters are Redis-shared, per-user and per-IP, fail open with in-memory insurance; brute-force auth guard and per-target victim protection work.
+- [x] Invalid / blocked / rate-limited requests never consume daily quota (pipeline test).
+- [x] `/metrics` is token-protected, low-cardinality, and not exposed under `/api`.
+- [x] Redis outage degrades gracefully (200 `degraded`), DB outage is 503.
+- [x] Zero Python; `client/` untouched.
 
 **When finished, report:** test counts, the three mutation-test results, any IANA range you added beyond the list in T4.6, and anything you deviated on. Then wait for the Phase 5 file (the simple tools: DNS, WHOIS/RDAP, SSL, HTTP headers, GeoIP, ping — each following `docs/tool-route-contract.md`).

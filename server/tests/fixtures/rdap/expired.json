@@ -1,0 +1,11 @@
+{
+  "objectClassName": "domain",
+  "ldhName": "EXPIRED.EXAMPLE",
+  "status": ["pending delete"],
+  "events": [
+    { "eventAction": "registration", "eventDate": "2001-01-01T00:00:00Z" },
+    { "eventAction": "expiration", "eventDate": "2020-01-01T00:00:00Z" }
+  ],
+  "entities": [],
+  "nameservers": []
+}

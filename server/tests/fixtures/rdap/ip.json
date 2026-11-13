@@ -1,0 +1,12 @@
+{
+  "objectClassName": "ip network",
+  "handle": "NET-192-0-2-0-1",
+  "startAddress": "192.0.2.0",
+  "endAddress": "192.0.2.255",
+  "entities": [
+    {
+      "roles": ["abuse"],
+      "vcardArray": ["vcard", [["fn", {}, "text", "Abuse Desk"], ["email", {}, "text", "abuse@example.net"]]]
+    }
+  ]
+}

@@ -49,12 +49,20 @@ function createAuthFailGuard({ env, logger, redisClient }) {
     }
   }
 
-  // Consume one point only when authentication actually fails. Reaching the
-  // cap triggers blockDuration inside rate-limiter-flexible.
-  function penalize(req) {
+  // Consume one point only when authentication actually fails. Crossing the
+  // cap applies blockDuration explicitly (RLF only auto-blocks past points).
+  async function penalize(req) {
     const value = keyOf(req)
     if (!value) return
-    limiter.consume(String(value)).catch(() => {})
+    try {
+      const result = await limiter.consume(String(value))
+      if (result.consumedPoints >= limits.points) {
+        await limiter.block(String(value), env.AUTH_FAIL_BLOCK_SEC)
+      }
+    } catch {
+      // RateLimiterRes means the key is already over the cap; RLF has applied
+      // the block. Store errors are failed open by the insurance limiter.
+    }
   }
 
   return { check, penalize }
@@ -79,6 +87,14 @@ export function createLimiters({
     name: 'webhooks_ip',
     points: WEBHOOKS_POINTS,
     durationSec: WEBHOOKS_WINDOW_SEC,
+    keyFn: (req) => req.ip,
+    ...base,
+  })
+
+  const metrics = createLimiter({
+    name: 'metrics',
+    points: 30,
+    durationSec: 60,
     keyFn: (req) => req.ip,
     ...base,
   })
@@ -112,6 +128,7 @@ export function createLimiters({
   return {
     globalIp,
     webhooksIp,
+    metrics,
     userGeneral,
     submitUser,
     submitIp,

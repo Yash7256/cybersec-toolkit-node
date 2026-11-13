@@ -45,6 +45,15 @@ enum RunStatus {
   TIMED_OUT
 }
 
+enum AuthorizationMethod {
+  ATTESTATION
+}
+
+enum AuthorizationStatus {
+  APPROVED
+  REVOKED
+}
+
 enum Protocol {
   TCP
   UDP
@@ -87,8 +96,25 @@ model User {
   toolRuns      ToolRun[]
   reports       Report[]
   auditLogs     AuditLog[]
+  targetAuthorizations TargetAuthorization[]
 
   @@map("users")
+}
+
+model TargetAuthorization {
+  id                 String              @id @default(uuid(7)) @db.Uuid
+  userId             String              @map("user_id") @db.Uuid
+  registrableDomain  String              @map("registrable_domain") @db.VarChar(253)
+  method             AuthorizationMethod @default(ATTESTATION)
+  status             AuthorizationStatus  @default(APPROVED)
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  revokedAt          DateTime?           @map("revoked_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, registrableDomain])
+  @@index([registrableDomain, status])
+  @@map("target_authorizations")
 }
 
 // ───────────── Quota (1 row per user/tool/day) ─────────────
@@ -125,6 +151,9 @@ model ToolRun {
   queuedAt     DateTime  @default(now()) @map("queued_at") @db.Timestamptz(3)
   startedAt    DateTime? @map("started_at") @db.Timestamptz(3)
   finishedAt   DateTime? @map("finished_at") @db.Timestamptz(3)
+  cancelRequestedAt DateTime? @map("cancel_requested_at") @db.Timestamptz(3)
+  quotaDate    DateTime? @map("quota_date") @db.Date
+  quotaRefunded Boolean  @default(false) @map("quota_refunded")
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -135,6 +164,7 @@ model ToolRun {
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])          // Q3
   @@index([userId, tool, createdAt(sort: Desc)])                    // Q4
   @@index([userId, tool, targetKey, createdAt(sort: Desc)])         // Q5
+  @@index([createdAt], type: Brin)
   @@map("tool_runs")
   // Partial indexes for Q6/Q7 are added in the raw-SQL migration (Prisma cannot express WHERE).
   // findings and reports relations are added in later slices.

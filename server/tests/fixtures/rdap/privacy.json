@@ -1,0 +1,21 @@
+{
+  "objectClassName": "domain",
+  "ldhName": "PRIVATE.EXAMPLE",
+  "status": ["active"],
+  "events": [
+    { "eventAction": "registration", "eventDate": "2015-05-05T00:00:00Z" },
+    { "eventAction": "expiration", "eventDate": "2099-05-05T00:00:00Z" }
+  ],
+  "entities": [
+    {
+      "roles": ["registrar"],
+      "vcardArray": ["vcard", [["fn", {}, "text", "Domains By Proxy, LLC"]]]
+    },
+    {
+      "roles": ["registrant"],
+      "vcardArray": ["vcard", [["org", {}, "text", "REDACTED FOR PRIVACY"]]]
+    }
+  ],
+  "nameservers": [{ "ldhName": "NS1.EXAMPLE" }],
+  "secureDNS": { "delegationSigned": false }
+}

@@ -41,13 +41,23 @@ export default defineConfig({
       {
         test: {
           name: 'db',
-          include: ['tests/db/**/*.test.js', 'tests/api/**/*.test.js'],
+          include: ['tests/db/**/*.test.js', 'tests/api/**/*.test.js', 'tests/live/**/*.test.js'],
           env: dbEnv,
           // Every DB test shares one database and calls truncateAll(); running
           // files in parallel lets one file's TRUNCATE wipe another's fixtures.
           fileParallelism: false,
           // globalSetup points DATABASE_URL/DIRECT_URL at TEST_DATABASE_URL
           // (guarded to end with _test) and applies migrations to it.
+          globalSetup: ['tests/setup/globalSetup.js'],
+        },
+      },
+      {
+        test: {
+          name: 'integration',
+          include: ['tests/integration/**/*.test.js'],
+          // Integration files share one Postgres database and Redis DB index.
+          fileParallelism: false,
+          env: { ...unitEnv, ...dbEnv, DATABASE_URL: 'postgresql://cybersec:cybersec@localhost:5433/cybersec_test', DIRECT_URL: 'postgresql://cybersec:cybersec@localhost:5433/cybersec_test', QUEUE_PREFIX: 'cst_phase6_test' },
           globalSetup: ['tests/setup/globalSetup.js'],
         },
       },

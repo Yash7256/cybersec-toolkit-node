@@ -52,7 +52,7 @@ describe('error responses', () => {
     boomRouter.get('/boom', () => {
       throw new Error('secret stack trace details')
     })
-    const prodApp = makeApp({ NODE_ENV: 'production' }, boomRouter)
+    const prodApp = makeApp({ NODE_ENV: 'production', RUN_EMBEDDED_WORKER: 'false' }, boomRouter)
 
     const res = await request(prodApp).get('/api/boom')
     expect(res.status).toBe(500)
@@ -75,7 +75,7 @@ describe('error responses', () => {
   })
 
   it('production not-found response contains no stack', async () => {
-    const prodApp = makeApp({ NODE_ENV: 'production' })
+    const prodApp = makeApp({ NODE_ENV: 'production', RUN_EMBEDDED_WORKER: 'false' })
     const res = await request(prodApp).get('/api/nope')
     expect(res.body.error).not.toHaveProperty('stack')
   })

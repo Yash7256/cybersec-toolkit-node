@@ -13,7 +13,7 @@ describe('test database harness', () => {
     expect(String(row.db)).toMatch(/_test$/)
   })
 
-  it('has all 11 tables from the design', async () => {
+  it('has all 12 tables from the design', async () => {
     const rows = await prisma.$queryRaw`
       SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename
     `
@@ -27,6 +27,7 @@ describe('test database harness', () => {
       'reports',
       'run_results',
       'service_cve_lookups',
+      'target_authorizations',
       'tool_runs',
       'usage_counters',
       'users',

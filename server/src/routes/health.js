@@ -30,9 +30,11 @@ export default function healthRouter() {
           checks[name] = 'fail'
         }
       }
-      const failed = Object.values(checks).includes('fail')
-      res.status(failed ? 503 : 200).json({
-        status: failed ? 'not_ready' : 'ready',
+      const dbFailed = checks.db === 'fail'
+      const redisFailed = checks.redis === 'fail' || checks.queue === 'fail'
+      const degraded = !dbFailed && Object.values(checks).includes('fail')
+      res.status(dbFailed || redisFailed ? 503 : 200).json({
+        status: dbFailed || redisFailed ? 'not_ready' : degraded ? 'degraded' : 'ready',
         checks,
       })
     }),

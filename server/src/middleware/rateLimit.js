@@ -9,12 +9,12 @@ const defaultLogger = createLogger(defaultEnv)
 
 function storeReporter(name, logger) {
   let lastLogAt = 0
-  return () => {
+  return (err) => {
     metrics.recordRateLimitStoreError(name)
     const now = Date.now()
     if (now - lastLogAt >= 30_000) {
       lastLogAt = now
-      logger.warn({ limiter: name }, 'rate limit store error; failing open')
+      logger.warn({ limiter: name, err: err?.message }, 'rate limit store error; failing open')
     }
   }
 }
@@ -37,12 +37,12 @@ function instrumentStore(client, onStoreError) {
         try {
           result = value.apply(target, args)
         } catch (err) {
-          onStoreError()
+          onStoreError(err)
           throw err
         }
         if (result && typeof result.then === 'function') {
           return result.catch((err) => {
-            onStoreError()
+            onStoreError(err)
             throw err
           })
         }
@@ -96,18 +96,24 @@ export function createRateLimiter({
     }),
   })
 
-  return { limiter, report }
+  return { limiter, report, client: storeClient }
 }
 
 export function createLimiter({ keyFn = (req) => req.ip, skip, ...options } = {}) {
   const { name, points, durationSec } = options
-  const { limiter, report } = createRateLimiter(options)
+  const { limiter, report, client } = createRateLimiter(options)
 
   return async function rateLimiter(req, res, next) {
     try {
       if (skip && skip(req)) return next()
       const value = keyFn(req)
       if (!value) return next()
+
+      // RLF rejects before touching the store when the client is not ready and
+      // then silently uses insurance, so surface that failure here.
+      if (typeof client.status === 'string' && client.status !== 'ready') {
+        report()
+      }
 
       const result = await limiter.consume(String(value))
       setRateHeaders(res, result, { points, durationSec })
@@ -116,7 +122,7 @@ export function createLimiter({ keyFn = (req) => req.ip, skip, ...options } = {}
       // A RateLimiterRes is a plain object; only a real Error means the store
       // itself failed. Those are failed open here (insurance already applied).
       if (err instanceof Error) {
-        report()
+        report(err)
         return next()
       }
 

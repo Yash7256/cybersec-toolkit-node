@@ -1,0 +1,6 @@
+export function analyzeCompression(headers = {}) { return { compressed: Boolean(headers['content-encoding']), encoding: headers['content-encoding'] ?? null } }
+export function analyzeCache(headers = {}) { return { cacheControl: headers['cache-control'] ?? null, noStore: /no-store/i.test(headers['cache-control'] ?? '') } }
+export function analyzeCors(headers = {}) { const origin = headers['access-control-allow-origin'] ?? null; return { origin, wildcard: origin === '*', credentials: String(headers['access-control-allow-credentials']).toLowerCase() === 'true', risky: origin === '*' && String(headers['access-control-allow-credentials']).toLowerCase() === 'true' } }
+export function analyzeDisclosure(headers = {}) { return { server: headers.server ?? null, poweredBy: headers['x-powered-by'] ?? null, issues: [headers.server, headers['x-powered-by']].filter(Boolean) } }
+export function allowedMethods(headers = {}) { return String(headers.allow ?? '').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean) }
+export function detectTechnologies(headers = {}) { const result = []; if (/cloudflare/i.test(`${headers.server ?? ''} ${headers['cf-ray'] ?? ''}`)) result.push({ name: 'Cloudflare', category: 'cdn' }); if (/express/i.test(headers['x-powered-by'] ?? '')) result.push({ name: 'Express', category: 'framework' }); return result }

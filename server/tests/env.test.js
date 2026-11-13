@@ -40,7 +40,19 @@ describe('parseEnv', () => {
       BLOCKED_ATTEMPTS_MAX: 5,
       BLOCKED_ATTEMPTS_WINDOW_SEC: 600,
       BLOCKED_COOLDOWN_SEC: 900,
+      SCAN_MAX_CONCURRENCY: 200,
+      SCAN_DEFAULT_CONCURRENCY: 100,
+      SCAN_RATE_CONN_PER_SEC: 300,
+      SCAN_GLOBAL_MAX_SOCKETS: 1500,
+      SCAN_TIMEOUT_MS: 300000,
+      NVD_CACHE_TTL_HOURS: 24,
+      NVD_MAX_RESULTS_PER_SERVICE: 10,
+      NVD_MIN_CVSS_SCORE: 5,
+      THREAT_INTEL_SPAMHAUS: false,
+      THREAT_INTEL_CACHE_TTL_SEC: 3600,
     })
+    expect(env.NVD_API_KEY).toBeUndefined()
+    expect(env.ABUSEIPDB_API_KEY).toBeUndefined()
   })
 
   it('throws a readable error when DATABASE_URL is missing', () => {

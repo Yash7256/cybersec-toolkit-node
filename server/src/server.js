@@ -4,9 +4,17 @@ import { env } from './config/env.js'
 import { createLogger } from './utils/logger.js'
 import { registerReadinessCheck } from './routes/health.js'
 import { pingDb, disconnect } from './db/client.js'
+import { pingRedis, disconnectRedis, waitForReady } from './redis/client.js'
+import { startEventLoopMonitor } from './observability/eventLoop.js'
+import { getProducerConnection } from './queue/connections.js'
+import { getQueueDepth, closeQueues } from './queue/queues.js'
+import { startWorker } from './worker/index.js'
+import { startQueueMetrics } from './observability/queueMetrics.js'
 
 const logger = createLogger(env)
 const app = createApp({ env, logger })
+const embeddedWorker = env.RUN_EMBEDDED_WORKER ? startWorker({ env, logger }) : null
+const stopQueueMetrics = startQueueMetrics({ env })
 const server = http.createServer(app)
 
 server.keepAliveTimeout = 65_000
@@ -22,6 +30,15 @@ registerReadinessCheck('db', async () => {
   return 'ok'
 })
 onShutdown(disconnect)
+onShutdown(disconnectRedis)
+onShutdown(closeQueues)
+onShutdown(stopQueueMetrics)
+if (embeddedWorker) onShutdown(() => embeddedWorker.stop())
+const disableEventLoopMonitor = startEventLoopMonitor({ logger })
+onShutdown(disableEventLoopMonitor)
+
+registerReadinessCheck('redis', async () => (await pingRedis({ timeoutMs: 1500, client: getProducerConnection() }) ? 'ok' : 'fail'))
+registerReadinessCheck('queue', async () => { await getProducerConnection().ping(); await Promise.race([getQueueDepth(), new Promise((_, reject) => setTimeout(() => reject(new Error('queue timeout')), 2000))]); return 'ok' })
 
 let shuttingDown = false
 async function shutdown(signal, exitCode = 0) {
@@ -65,6 +82,10 @@ process.on('unhandledRejection', (reason) => {
 process.on('uncaughtException', (err) => {
   logger.fatal({ err }, 'Uncaught exception')
   shutdown('uncaughtException', 1)
+})
+
+waitForReady(5000).then((ready) => {
+  if (!ready) logger.warn('redis degraded')
 })
 
 server.listen(env.PORT, () => {
