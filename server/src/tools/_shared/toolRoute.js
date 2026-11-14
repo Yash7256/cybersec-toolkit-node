@@ -38,7 +38,8 @@ export function createToolHandler({ definition, auth, clerkClient, env, limiters
     req.toolName = definition.toolEnum
     const quotaUnits = Math.max(1, Math.trunc(definition.quotaUnits?.(input, req) ?? 1))
     const displayTarget = target.display ?? input.target ?? input.host ?? target.targetKey
-    const dedupe = definition.dedupeTtlSec > 0 ? await runRepo.findRecentCompleted({ userId: req.user.id, tool: definition.toolEnum, targetKey: target.targetKey, options: input, withinSec: definition.dedupeTtlSec }) : null
+    const dedupeTtlSec = definition.dedupeTtlFor?.(input, req) ?? definition.dedupeTtlSec ?? 0
+    const dedupe = dedupeTtlSec > 0 ? await runRepo.findRecentCompleted({ userId: req.user.id, tool: definition.toolEnum, targetKey: target.targetKey, options: input, withinSec: dedupeTtlSec }) : null
     if (dedupe) {
       res.set('X-Run-Id', dedupe.id)
       res.json({ runId: dedupe.id, tool: definition.name, target: displayTarget, status: 'COMPLETED', cached: true, data: dedupe.result.data, quota: null })

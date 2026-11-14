@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import GeoIPResultsPage from '../components/geoip/GeoIPResultsPage';
+import StructuredGeoIPDetails from '../components/geoip/StructuredGeoIPDetails';
 
 export default function SharedResult() {
   const { token } = useParams();
@@ -44,9 +45,10 @@ export default function SharedResult() {
               <div className="mt-1 font-mono text-lg text-white">{state.data.target}</div>
               <div className="mt-1 text-[11px] text-[#aaaaaa]">Expires {new Date(state.data.expiresAt).toLocaleString()}</div>
             </div>
-            {state.data.tool === 'GEOIP'
-              ? <GeoIPResultsPage result={state.data.data} copied="" onCopy={() => {}} onDownload={() => {}} />
+            {['GEOIP', 'GEOIP_BULK', 'GEOIP_CIDR', 'ASN'].includes(state.data.tool)
+              ? <GeoIPResultsPage result={{ mode: state.data.data?.mode === 'bulk' || state.data.data?.mode === 'cidr' ? 'batch' : state.data.data?.mode ?? (state.data.tool === 'ASN' ? 'asn' : 'single'), ...state.data.data, rows: state.data.data?.rows ?? state.data.data?.results ?? [] }} copied="" onCopy={() => {}} onDownload={() => {}} />
               : <pre className="overflow-auto rounded-xl border border-white/[0.14] bg-[#190f23]/80 p-5 text-[11px] text-[#ded4e9]">{JSON.stringify(state.data.data, null, 2)}</pre>}
+            {['GEOIP', 'GEOIP_BULK', 'GEOIP_CIDR', 'ASN'].includes(state.data.tool) && <StructuredGeoIPDetails result={{ mode: state.data.data?.mode === 'bulk' || state.data.data?.mode === 'cidr' ? 'batch' : state.data.data?.mode ?? (state.data.tool === 'ASN' ? 'asn' : 'single'), ...state.data.data, rows: state.data.data?.rows ?? state.data.data?.results ?? [] }} />}
           </>
         )}
       </div>

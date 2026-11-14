@@ -16,6 +16,9 @@ import { createLimits } from '../_shared/limits.js'
 import { createBreaker } from '../../net/circuitBreaker.js'
 import { resolveTarget } from '../../security/resolve.js'
 import { env as defaultEnv } from '../../config/env.js'
+import { buildPlan } from './plan.js'
+import { runBatch } from './batch.js'
+import { lookupAsn } from '../asn/index.js'
 
 export const RESULT_KEYS = [
   'target',
@@ -176,6 +179,7 @@ export function createGeoipDefinition({
   wait = sleep,
   redis = null,
   sources = {},
+  asnLookup = lookupAsn,
 } = {}) {
   const sourceCymru = sources.cymru ?? cymruAsn
   const sourceTor = sources.tor ?? torExitStatus
@@ -192,6 +196,26 @@ export function createGeoipDefinition({
       .map((name) => providers.find((provider) => provider.name === name))
       .filter(Boolean)
     return selected.length > 0 ? selected : providers
+  }
+
+  async function automaticNetworkEnrichment(result, plan) {
+    if (plan?.items?.[0]?.kind !== 'host' || !result.asn) return result
+    try {
+      const asnResult = await asnLookup(result.asn)
+      return {
+        ...result,
+        asn_lookup: asnResult,
+        cidr_prefixes: asnResult.prefixes ?? [],
+        warnings: [...(result.warnings ?? []), ...(asnResult.warnings ?? [])],
+      }
+    } catch {
+      return {
+        ...result,
+        asn_lookup: null,
+        cidr_prefixes: [],
+        warnings: [...(result.warnings ?? []), { source: 'asn-prefixes', message: 'ASN prefix lookup unavailable' }],
+      }
+    }
   }
 
   function maxIps() {
@@ -311,7 +335,7 @@ export function createGeoipDefinition({
     }
   }
 
-  return {
+  const singleDefinition = {
     name: 'geoip',
     toolEnum: 'GEOIP',
     schema,
@@ -516,6 +540,42 @@ export function createGeoipDefinition({
       provider: data.provider,
       isCdn: data.is_cdn,
     }),
+  }
+  return {
+    ...singleDefinition,
+    schema: z.object({ target: z.string().trim().min(1).max(20000) }),
+    dedupeTtlSec: 0,
+    dedupeTtlFor: (input) => input.plan?.mode === 'single' ? 3600 : input.plan?.mode === 'asn' ? 86400 : 0,
+    mode: 'auto',
+    async validateInput(input, { req } = {}) {
+      const tier = req?.user?.role === 'ADMIN' ? 'ADMIN' : req?.user?.tier === 'PAID' ? 'PAID' : 'FREE'
+      input.plan = buildPlan(input.target, { tier, env })
+      return { targetKey: input.plan.targetKey, addresses: [], display: input.plan.display }
+    },
+    quotaUnits: (input) => input.plan?.units ?? 1,
+    asyncWhen: (input) => (input.plan?.units ?? 1) > 1,
+    async execute(input, ctx) {
+      // Preserve the executor contract used by internal callers (traceroute and
+      // the legacy unit tests); HTTP submissions always arrive with a plan.
+      if (!input.plan && [4, 6].includes(net.isIP(input.target?.trim?.()))) {
+        return singleDefinition.execute(input, ctx)
+      }
+      const plan = input.plan ?? buildPlan(input.target, { tier: 'PAID', env })
+      if (plan.mode === 'single') {
+        const single = await singleDefinition.execute({ target: plan.items[0].canonical }, ctx)
+        const enriched = await automaticNetworkEnrichment(single, plan)
+        return { ...enriched, mode: 'single', target: input.target }
+      }
+      if (plan.mode === 'asn') return { ...(await lookupAsn(plan.items[0].canonical)), mode: 'asn', target: plan.items[0].canonical }
+      const data = await runBatch(plan.items, {
+        signal: ctx?.signal,
+        reportProgress: ctx?.reportProgress,
+        lookup: (target, options) => singleDefinition.execute({ target }, { ...ctx, ...options }),
+        lookupAsn: (asn) => lookupAsn(asn),
+      })
+      return { mode: 'batch', target: input.target, ...data, rejected: plan.rejected, skipped: plan.skipped, expanded_from: plan.expanded_from }
+    },
+    summarize: (data) => ({ mode: data.mode, country: data.country, city: data.city, asn: data.asn, provider: data.provider, isCdn: data.is_cdn, total: data.total, completed: data.completed, failed: data.failed }),
   }
 }
 

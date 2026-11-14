@@ -126,6 +126,8 @@ const EnvSchema = z.object({
     .transform((value) => value.split(',').map((entry) => entry.trim().toLowerCase()).filter(Boolean)),
   GEOIP_BULK_MAX_FREE: z.coerce.number().int().min(1).max(100).default(10),
   GEOIP_BULK_MAX_PAID: z.coerce.number().int().min(1).max(100).default(100),
+  GEOIP_MAX_UNITS_FREE: z.coerce.number().int().min(1).max(100).optional(),
+  GEOIP_MAX_UNITS_PAID: z.coerce.number().int().min(1).max(100).optional(),
   GEOIP_REVERSE_IP: envBoolean,
   SHARE_DEFAULT_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
   PING_METHOD: z.enum(['auto', 'icmp', 'tcp']).default('auto'),

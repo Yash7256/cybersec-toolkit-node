@@ -11,6 +11,17 @@ export function normalizeAsn(value) {
   return `AS${String(value).replace(/^AS/i, '')}`
 }
 
+export async function lookupAsn(asn, { cymru = cymruAsnInfo, ripestat = announcedPrefixes, env = defaultEnv } = {}) {
+  const normalized = normalizeAsn(asn)
+  const warnings = []
+  const [info, prefixes] = await Promise.all([
+    cymru(normalized).catch(() => { warnings.push({ source: 'team-cymru', message: 'ASN lookup unavailable' }); return null }),
+    ripestat(normalized).catch(() => { warnings.push({ source: 'ripestat', message: 'Prefix lookup unavailable' }); return null }),
+  ])
+  if (!info && !prefixes) throw Object.assign(new Error('Lookup service unavailable'), { kind: 'upstream' })
+  return { ...emptyResult({ asn: normalized }), target: normalized, asn: normalized, name: info?.name ?? null, country: info?.country ?? null, rir: info?.rir ?? null, allocated: info?.allocated ?? null, prefixes: prefixes?.prefixes ?? [], prefix_count: prefixes?.prefix_count ?? null, truncated: prefixes?.truncated ?? false, warnings }
+}
+
 export function emptyResult(input) {
   return {
     target: input?.asn ?? null,

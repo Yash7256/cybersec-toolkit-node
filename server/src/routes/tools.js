@@ -12,9 +12,6 @@ const CATALOGUE = {
   http_headers: { label: 'HTTP Headers', description: 'Audit response security headers and disclosure.' },
   whois: { label: 'WHOIS / RDAP', description: 'Look up domain registration and expiry details.' },
   geoip: { label: 'GeoIP', description: 'Geolocate a host or IP address.' },
-  asn: { label: 'ASN Lookup', description: 'Inspect an autonomous system, its name, and announced prefixes.' },
-  geoip_bulk: { label: 'GeoIP Bulk', description: 'Geolocate up to 100 hosts or IPs with an aggregate summary.' },
-  geoip_cidr: { label: 'GeoIP CIDR', description: 'Geolocate a CIDR block up to /24 IPv4 or /120 IPv6.' },
   ping: { label: 'Ping', description: 'Measure reachability and latency over ICMP or TCP.' },
   port_scan: { label: 'Port Scan', description: 'Scan TCP ports, fingerprint services, and assess exposure.' },
   subdomain: { label: 'Subdomain Discovery', description: 'Discover and safely probe public subdomains.' },
@@ -58,8 +55,16 @@ export default function toolsRouter({ auth, clerkClient, env, limiters } = {}) {
   router.get('/geoip/me', createToolHandler({ definition: geoipMe, auth, clerkClient, env, limiters }))
   router.get('/geoip', createToolHandler({ definition: tools.geoip, auth, clerkClient, env, limiters }))
   router.get('/geo', createToolHandler({ definition: tools.geoip, auth, clerkClient, env, limiters }))
-  router.get('/asn', createToolHandler({ definition: tools.asn, auth, clerkClient, env, limiters }))
-  router.get('/geoip/cidr', createToolHandler({ definition: tools.geoip_cidr, auth, clerkClient, env, limiters }))
+  const deprecated = (definition) => ({ ...definition, schema: definition.schema, beforeSubmit: async (input, context) => { context?.res?.set?.('Deprecation', 'true'); return definition.beforeSubmit?.(input, context) } })
+  const legacyAsn = { ...tools.geoip, schema: z.object({ asn: z.string().trim().min(1) }), normalize: (input) => ({ target: input.asn }) }
+  const legacyBulk = { ...tools.geoip, schema: z.object({ targets: z.array(z.string().trim().min(1)).min(1).max(500) }), normalize: (input) => ({ target: input.targets.join('\n') }) }
+  const legacyCidr = { ...tools.geoip, schema: z.object({ target: z.string().trim().min(1) }), normalize: (input) => input }
+  const legacyHandler = (definition) => createToolHandler({ definition, auth, clerkClient, env, limiters })
+  router.get('/asn', (req, res, next) => { res.set('Deprecation', 'true'); return legacyHandler(legacyAsn)(req, res, next) })
+  router.post('/asn', (req, res, next) => { res.set('Deprecation', 'true'); return legacyHandler(legacyAsn)(req, res, next) })
+  router.post('/geoip_bulk', (req, res, next) => { res.set('Deprecation', 'true'); return legacyHandler(legacyBulk)(req, res, next) })
+  router.get('/geoip/cidr', (req, res, next) => { res.set('Deprecation', 'true'); return legacyHandler(legacyCidr)(req, res, next) })
+  router.post('/geoip_cidr', (req, res, next) => { res.set('Deprecation', 'true'); return legacyHandler(legacyCidr)(req, res, next) })
   router.get('/', (_req, res) =>
     res.set('Cache-Control', 'no-store').json(
       Object.values(tools).map((tool) => ({

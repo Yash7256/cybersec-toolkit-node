@@ -3,13 +3,10 @@ import { definition as ssl } from './ssl/index.js'
 import { definition as httpHeaders } from './httpHeaders/index.js'
 import { definition as whois } from './whois/index.js'
 import { definition as geoip } from './geoip/index.js'
-import { definition as asn } from './asn/index.js'
-import { definition as geoipBulk } from './geoip/bulk.js'
-import { definition as geoipCidr } from './geoip/cidr.js'
 import { definition as ping } from './ping/index.js'
 import { definition as portScan } from './portScan/index.js'
 import { definition as subdomain } from './subdomain/index.js'
 import { definition as traceroute } from './traceroute/index.js'
 import { definition as webappScan } from './webapp/index.js'
-export const tools = { dns, ssl, http_headers: httpHeaders, whois, geoip, asn, geoip_bulk: geoipBulk, geoip_cidr: geoipCidr, ping, port_scan: portScan, subdomain, traceroute, webapp_scan: webappScan }
+export const tools = { dns, ssl, http_headers: httpHeaders, whois, geoip, ping, port_scan: portScan, subdomain, traceroute, webapp_scan: webappScan }
 export default tools

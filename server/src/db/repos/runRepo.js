@@ -55,7 +55,7 @@ export async function refundOnce(runId) {
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw`UPDATE tool_runs SET quota_refunded=true WHERE id=${runId}::uuid AND quota_date IS NOT NULL AND NOT quota_refunded RETURNING user_id, tool, quota_date, options`
     if (!rows.length) return false
-    const units = rows[0].tool === 'GEOIP_BULK' ? Math.max(1, rows[0].options?.targets?.length ?? 1) : 1
+    const units = rows[0].options?.plan?.unitsCount ?? (rows[0].tool === 'GEOIP_BULK' ? Math.max(1, rows[0].options?.targets?.length ?? 1) : 1)
     await tx.$queryRaw`UPDATE usage_counters SET used=GREATEST(used-${units},0), updated_at=now() WHERE user_id=${rows[0].user_id} AND tool=${rows[0].tool} AND usage_date=${rows[0].quota_date} RETURNING used`
     return true
   })

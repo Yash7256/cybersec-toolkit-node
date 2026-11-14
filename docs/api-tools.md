@@ -80,16 +80,27 @@ Data keys: `target, domain, available, registrar, creation_date, expiration_date
 updated_date, name_servers, status, dnssec, privacy_protected, days_until_expiry,
 expiry_status, summary, error, rdap_available, normalized, rdap, cached`.
 
-### `GET /api/tools/geoip`
+### `POST /api/tools/geoip` (also `GET` for compatibility)
 
-Query: `?target=<hostname-or-public-ip>`. Providers are tried in
+Request/query: `{ "target": string }`. Split on whitespace, commas, or
+semicolons; the server classifies each token and selects the behavior. Providers are tried in
 `GEOIP_PROVIDER_ORDER`; results are cached for 3600 s and enriched with reverse
 DNS, CDN detection, and RDAP abuse contacts when available. The first
 `GEOIP_MAX_IPS` resolved addresses (default 4, max 10, IPv4 first) are looked
 up, and `ip_results` holds one entry per lookup. Set `GEOIP_CONSENSUS=true` to
 query a second provider and report `confidence: "high" | "low"`.
 
-Data keys: `target, ip, addresses, resolved_ips, country, country_code,
+Single results keep the existing shape and add `mode: "single"`. One ASN token
+returns `mode: "asn"` with ASN metadata. Multiple units return `mode: "batch"`
+with `total, completed, failed, rejected, skipped, expanded_from, summary,
+rows, ip_results, warnings, error`; quota is charged per unit.
+
+For a single hostname or URL, GeoIP also performs bounded automatic network
+enrichment: it looks up each unique discovered ASN once and returns
+`asn_lookup` plus announced `cidr_prefixes`. These prefixes are reported but
+not expanded into individual scans.
+
+Data keys: `target, mode, ip, addresses, resolved_ips, country, country_code,
 continent, continent_code, region, city, postal, latitude, longitude, timezone,
 utc_offset, flag_emoji, calling_code, asn, org, isp, asn_domain, provider,
 is_cdn, cdn_provider, is_proxy, is_hosting, is_vpn, is_tor, confidence,
@@ -114,29 +125,10 @@ enables PTR enrichment only when a licensed provider is configured.
 Looks up the caller's public IP from `req.ip` only; `X-Forwarded-For` is never
 parsed manually. Private or reserved callers receive `422 TARGET_BLOCKED`.
 
-### `POST /api/tools/asn` / `GET /api/tools/asn?asn=AS15169`
-
-Request: `{ "asn": "AS15169" }`. Merges Team Cymru ASN metadata with RIPEstat
-announced prefixes. Dedupe 86400 s. Data keys: `target, asn, name, country, rir,
-allocated, prefixes, prefix_count, truncated, warnings, error, cached`.
-
-### `POST /api/tools/geoip_cidr` / `GET /api/tools/geoip/cidr?target=8.8.8.0/24`
-
-Request: `{ "target": "8.8.8.0/24" }`. IPv4 is limited to `/24`–`/32`; IPv6 to
-`/120`–`/128`; at most 256 addresses. Private/reserved addresses are skipped and
-listed in `skipped`. Blocks over 16 addresses are queued. Data keys: `target,
-mode, total, completed, failed, skipped, summary, ip_results, results, warnings,
-error`. `summary` contains `countries`, `asns`, `ip_types`, `cdn`, `hosting`, and
-`tor` counts.
-
-### `POST /api/tools/geoip_bulk`
-
-Request: `{ "targets": string[] }`, 1–100 unique entries. Invalid entries are
-returned in `rejected`; the remainder are processed. The per-plan cap is
-`GEOIP_BULK_MAX_FREE` (default 10) or `GEOIP_BULK_MAX_PAID` (default 100).
-Queued and charged one quota unit per valid target. Data keys: `target, mode,
-total, completed, failed, rejected, summary, ip_results, results, warnings,
-error`.
+Legacy adapters remain at `POST /api/tools/geoip_bulk`, `GET|POST
+/api/tools/asn`, and `GET|POST /api/tools/geoip/cidr`. They set
+`Deprecation: true`, are hidden from the catalogue, and translate to the
+unified `target` request. New runs still use tool enum `GEOIP`.
 
 ### `POST /api/tools/ping`
 

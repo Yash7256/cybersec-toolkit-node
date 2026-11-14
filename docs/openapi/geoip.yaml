@@ -1,238 +1,66 @@
 openapi: 3.1.0
 info:
   title: CyberSec Toolkit — GeoIP Workflow API
-  version: 8.0.0
-servers:
-  - url: /api
-security:
-  - bearerAuth: []
+  version: 9.0.0
+servers: [{ url: /api }]
+security: [{ bearerAuth: [] }]
 components:
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
   schemas:
-    Warning:
+    GeoIPRequest:
       type: object
-      properties:
-        source: { type: string }
-        message: { type: string }
+      required: [target]
+      additionalProperties: false
+      properties: { target: { type: string, minLength: 1, maxLength: 20000 } }
     GeoIPResult:
       type: object
+      required: [mode, target]
       properties:
-        target: { type: [string, 'null'] }
-        ip: { type: [string, 'null'] }
-        country_code: { type: [string, 'null'] }
-        city: { type: [string, 'null'] }
-        asn: { type: [string, 'null'] }
-        ip_type: { type: [string, 'null'] }
-        ip_type_basis: { type: [string, 'null'] }
-        privacy: { type: [object, 'null'] }
-        reputation: { type: [object, 'null'] }
-        consensus: { type: object }
-        warnings:
-          type: array
-          items: { $ref: '#/components/schemas/Warning' }
-        ip_results:
-          type: array
-          items: { type: object }
-    ShareLink:
+        mode: { type: string, enum: [single, asn, batch] }
+        target: { type: string }
+        total: { type: integer }
+        completed: { type: integer }
+        failed: { type: integer }
+        rejected: { type: array, items: { type: object } }
+        skipped: { type: array, items: { type: object } }
+        rows: { type: array, items: { type: object } }
+        ip_results: { type: array, items: { type: object } }
+        warnings: { type: array, items: { type: object } }
+    GeoIPEnvelope:
       type: object
       properties:
-        id: { type: string, format: uuid }
-        token: { type: string }
-        path: { type: string }
-        expiresAt: { type: string, format: date-time }
-        redactAbuseContact: { type: boolean }
+        runId: { type: string }
+        tool: { type: string, enum: [geoip] }
+        target: { type: string }
+        status: { type: string }
+        data: { $ref: '#/components/schemas/GeoIPResult' }
 paths:
   /tools/geoip:
-    get:
-      summary: Look up a hostname or public IP
-      parameters:
-        - name: target
-          in: query
-          required: true
-          schema: { type: string }
+    post:
+      summary: Classify and look up one or more GeoIP targets
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GeoIPRequest' } } }
       responses:
-        '200':
-          description: Lookup result
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  runId: { type: string }
-                  tool: { type: string }
-                  target: { type: string }
-                  status: { type: string }
-                  data: { $ref: '#/components/schemas/GeoIPResult' }
+        '200': { description: Synchronous result, content: { application/json: { schema: { $ref: '#/components/schemas/GeoIPEnvelope' } } } }
+        '202': { description: Queued result, headers: { Location: { schema: { type: string } } } }
+    get:
+      summary: Compatibility GET for the unified GeoIP endpoint
+      parameters: [{ name: target, in: query, required: true, schema: { type: string, maxLength: 20000 } }]
+      responses: { '200': { description: GeoIP result } }
   /tools/geoip/me:
-    get:
-      summary: Look up the caller's public IP
-      responses:
-        '200':
-          description: Lookup result for req.ip
+    get: { summary: Look up the caller's public IP, responses: { '200': { description: GeoIP result } } }
   /tools/geoip/history:
     get:
-      summary: List recent GeoIP workflow runs
-      parameters:
-        - name: tool
-          in: query
-          schema: { type: string, enum: [GEOIP, GEOIP_BULK, GEOIP_CIDR, ASN] }
-        - name: limit
-          in: query
-          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
-      responses:
-        '200':
-          description: Recent runs
-    delete:
-      summary: Delete all terminal GeoIP workflow runs for the caller
-      responses:
-        '200':
-          description: Number of deleted runs
-  /tools/geoip/cidr:
-    get:
-      summary: Look up a bounded CIDR block
-      parameters:
-        - name: target
-          in: query
-          required: true
-          schema: { type: string, examples: ['8.8.8.0/24'] }
-      responses:
-        '200':
-          description: Inline result
-        '202':
-          description: Queued; poll Location
-    post:
-      summary: Look up a bounded CIDR block
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [target]
-              properties:
-                target: { type: string, examples: ['8.8.8.0/24'] }
-      responses:
-        '200':
-          description: Inline result
-        '202':
-          description: Queued; poll Location
+      summary: List GeoIP history including legacy runs
+      parameters: [{ name: tool, in: query, schema: { type: string, enum: [GEOIP, GEOIP_BULK, GEOIP_CIDR, ASN] } }, { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50 } }]
+      responses: { '200': { description: Recent runs } }
+    delete: { summary: Delete terminal GeoIP history, responses: { '200': { description: Deleted count } } }
   /tools/geoip_bulk:
-    post:
-      summary: Look up up to 100 targets
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [targets]
-              properties:
-                targets:
-                  type: array
-                  maxItems: 100
-                  items: { type: string }
-      responses:
-        '202':
-          description: Queued; poll Location
+    post: { deprecated: true, summary: Deprecated bulk adapter, requestBody: { required: true, content: { application/json: { schema: { type: object, required: [targets], properties: { targets: { type: array, items: { type: string } } } } } } }, responses: { '200': { description: Unified result }, '202': { description: Queued result } } }
+  /tools/geoip/cidr:
+    get: { deprecated: true, summary: Deprecated CIDR adapter, parameters: [{ name: target, in: query, required: true, schema: { type: string } }], responses: { '200': { description: Unified result } } }
   /tools/asn:
-    get:
-      summary: Look up an autonomous system
-      parameters:
-        - name: asn
-          in: query
-          required: true
-          schema: { type: string, examples: ['AS15169'] }
-      responses:
-        '200':
-          description: ASN metadata and announced prefixes
-    post:
-      summary: Look up an autonomous system
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [asn]
-              properties:
-                asn: { type: string }
-      responses:
-        '200':
-          description: ASN metadata and announced prefixes
-  /runs/{id}/share:
-    post:
-      summary: Create a share link for a completed run
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                ttlDays: { type: integer, minimum: 1, maximum: 30, default: 7 }
-                redactAbuseContact: { type: boolean, default: true }
-      responses:
-        '201':
-          description: Share link created
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ShareLink' }
-  /runs/{id}/shares:
-    get:
-      summary: List share links for a run
-      responses:
-        '200':
-          description: Share links
-  /runs/{id}/share/{shareId}:
-    delete:
-      summary: Revoke a share link
-      responses:
-        '204':
-          description: Revoked
-  /runs/compare:
-    get:
-      summary: Compare 2–5 owned runs
-      parameters:
-        - name: ids
-          in: query
-          required: true
-          schema: { type: string, examples: ['id1,id2'] }
-      responses:
-        '200':
-          description: Compared runs
-  /runs/{id}/report:
-    get:
-      summary: Download a completed run report
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-        - name: format
-          in: query
-          schema: { type: string, enum: [md, json], default: md }
-      responses:
-        '200':
-          description: Markdown or JSON report
-  /share/{token}:
-    get:
-      summary: Read a public share link
-      security: []
-      parameters:
-        - name: token
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Redacted run result
-        '404':
-          description: Expired, revoked, or unknown token
+    get: { deprecated: true, summary: Deprecated ASN adapter, parameters: [{ name: asn, in: query, required: true, schema: { type: string } }], responses: { '200': { description: Unified result } } }
+    post: { deprecated: true, summary: Deprecated ASN adapter, responses: { '200': { description: Unified result } } }
